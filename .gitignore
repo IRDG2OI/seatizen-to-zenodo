@@ -1,0 +1,5 @@
+filters/
+sessions/
+useless/
+*.ckpt
+version_17/
