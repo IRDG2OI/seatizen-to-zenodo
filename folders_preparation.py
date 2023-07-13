@@ -17,30 +17,6 @@ import shutil
 # ckpt_path = 'epoch=7-step=2056.ckpt'
 ckpt_path = 'epoch=8-step=1412.ckpt'
 
-# =============================================================================
-# # classifiy images in one directory
-# =============================================================================
-results = predictor.classify_useless_images(
-    folder_path='session_2017_11_04_kite_Le_Morne/DCIM/100GOPRO/',
-    ckpt_path=ckpt_path)
-
-# export results to csv file
-results.to_csv('100GOPRO_results.csv', index = False, header = True)
-
-# move useless images
-output.move_images(results,
-           dest_path = '100GOPRO_useless_images/',
-           who_moves = 'useless',
-           copy_or_cut = 'cut'
-           )
-
-# display results
-output.display_predictions(results, image_nb=5)
-
-# =============================================================================
-# # classify one or multiple sessions at once
-# =============================================================================
-
 # get folder list that contains images (['DCIM/100GOPRO/', 'DCIM/101GOPRO/'])
 def get_subfolders(folder_path):
     subfolders = []
