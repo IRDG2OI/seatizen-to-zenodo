@@ -11,11 +11,12 @@ from jacques.inference import output
 import os
 import pandas as pd
 import shutil
+from add_mask_predictions import predict_image
 
 # checkpoint path
 # ckpt_path = 'model_checkpoint_v0.ckpt'
-# ckpt_path = 'epoch=7-step=2056.ckpt'
-ckpt_path = 'epoch=8-step=1412.ckpt'
+ckpt_path = 'epoch=7-step=2056.ckpt'
+# ckpt_path = 'epoch=8-step=1412.ckpt'
 
 # get folder list that contains images (['DCIM/100GOPRO/', 'DCIM/101GOPRO/'])
 def get_subfolders(folder_path):
@@ -103,7 +104,7 @@ def classify_sessions(sessions):
             results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
     return results_of_all_sessions
 
-def restructure_sessions(sessions, dest_path, csv_path):
+def restructure_sessions(sessions, dest_path, csv_path, pred_path):
     '''
     Function to restructure sessions folders to be "Zenodo ready"
     # Input:
@@ -115,6 +116,8 @@ def restructure_sessions(sessions, dest_path, csv_path):
             ## destination path where useless images will me moved (ex: 'useless/session_2017_11_19_paddle_Black_Rocks_useless_images/')
         - csv_path:
             ## path where classification result csv will be written (ex: 'filters/session_2017_11_19_paddle_Black_Rocks.csv')
+        - pred_path:
+            ## path where annotated images will be created (ex: 'predicted_images/')
     # Output:
         - sessions folders "Zenodo ready"
     '''
@@ -135,18 +138,34 @@ def restructure_sessions(sessions, dest_path, csv_path):
     results_of_all_sessions.to_csv(csv_path, index = False, header = True)
     print(f'\nClassification informations written at {csv_path}')
     
-    # delete BEFORE and AFTER folders if they exists
     list_of_sessions = get_sessions_list(sessions)
+    # operations on each session
     for session in list_of_sessions:
-        deletion_path =f'{session}/DCIM/'
-        delete_folders(deletion_path)
+        path =f'{session}/DCIM/'
+        
+        # delete BEFORE and AFTER folders if they exists
+        delete_folders(path)
+        
+        # adding mask predictions
+        list_of_dir = get_subfolders(path)
+        for directory in list_of_dir:
+            print("Mask predictions generation...\n")
+            print(directory)
+            images_path = os.path.join(session, directory)
+            
+            outpath = os.path.join(pred_path, f'{session}/{directory}/')
+            if not os.path.exists(outpath):
+                os.makedirs(outpath)
+                
+            predict_image(images_path, outpath)
     
     # to-do:
         # renommage des repertoires en fonction args fonction (si renseigné -> renommage)
   
 # sessions = 'test/'
-sessions = ['sessions/session_2017_11_19_paddle_Black_Rocks']
-dest_path = 'useless/session_2017_11_19_paddle_Black_Rocks_useless_images/'
-csv_path = 'filters/session_2017_11_19_paddle_Black_Rocks.csv'
+sessions = ['sessions/session_2017_11_18_paddle_Prairie']
+dest_path = 'useless/session_2017_11_18_paddle_Prairie_useless_images/'
+csv_path = 'filters/session_2017_11_18_paddle_Prairie.csv'
+pred_path = 'predicted_images/'
 
-restructure_sessions(sessions, dest_path, csv_path)
+restructure_sessions(sessions, dest_path, csv_path, pred_path)
