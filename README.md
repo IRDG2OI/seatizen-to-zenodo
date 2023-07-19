@@ -66,5 +66,10 @@ The execution of **restructure_sessions(sessions, dest_path, csv_path, pred_path
 4. Create annotated images with species predictions at **pred_path**.
 
 ---
+<div align="center">
+
 This project is being developed as part of the G2OI project, cofinanced by the European union, the Reunion region, and the French Republic.
+
 <img src="https://github.com/alexandreBoy/seatizen-to-zenodo/blob/main/docs/logos_partenaires.png?raw=True" height="40px">
+
+</div>
