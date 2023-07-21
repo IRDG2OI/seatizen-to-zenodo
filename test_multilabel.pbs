@@ -1,0 +1,22 @@
+#/bin/bash
+#PBS -j oe
+#PBS -q sequentiel
+#PBS -l walltime=00:15:00
+#PBS -l mem=16g
+#PBS -m n
+#PBS -N multilabel_session_2017_11_04_kite_Le_Morne_100GOPRO
+#PBS -o ./results_txt/output_multilabel_session_2017_11_04_kite_Le_Morne_100GOPRO.txt
+#PBS -e ./results_txt/error_multilabel_session_2017_11_04_kite_Le_Morne_100GOPRO.txt
+#PBS -S /bin/bash
+
+signal_handler() {
+	pkill --parent "${$}"
+}
+
+trap signal_handler EXIT
+cd /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest
+
+. /appli/anaconda/latest/etc/profile.d/conda.sh
+conda activate /home3/datahome/aboyer/.conda/envs/seatizen_env
+python /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/test_multilabel.py
+conda deactivate

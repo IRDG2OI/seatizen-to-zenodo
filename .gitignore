@@ -3,6 +3,7 @@ sessions/
 useless/
 predicted_images/
 *.ckpt
+*.pth
 version_17/
 2022-06-15_LR_0.00025_BATCH_2_ITER_150000_1655286559.4163053/
 __pycache__/
