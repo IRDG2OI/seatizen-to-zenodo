@@ -6,8 +6,8 @@
 
 ## folders_preparation.py
 
-This Python script will help you prepare your seatizen data before uploading it to Zenodo. <br/>
-It uses Jacques, a python package that detect useless images within a directory using artificial intelligence.
+This Python script will help you prepare your [seatizen](https://ocean-indien.ifremer.fr/Projets/Innovations-technologiques/SEATIZEN-2020-2022) data before uploading it to Zenodo. <br/>
+It uses Jacques, a package to classify useless and useful images according to marine ecological interests.
 
 ### Installation
 
