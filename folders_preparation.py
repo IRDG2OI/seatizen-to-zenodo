@@ -78,6 +78,24 @@ def move_back_images(csv_path):
     
             # Display the operation for confirmation
             print(f"Moved image '{image_path}' back to '{original_dir}'.")
+            
+def join_GPS_metadata(annotation_csv_path, gps_info_csv_path, merged_csv_path):
+    annot_df = pd.read_csv(annotation_csv_path)
+    gps_df = pd.read_csv(gps_info_csv_path)
+    
+    # Extract image names from the file paths
+    annot_df['Image_name'] = annot_df['Image_path'].str.split('/').str[-1]
+    gps_df['Image_name'] = gps_df['photo_relative_file_path'].str.split('/').str[-1]
+    
+    # Merge the DataFrames based on the image names
+    merged_df = annot_df.merge(gps_df[['Image_name', 'decimalLatitude', 'decimalLongitude', 'GPSDateTime']],
+                               on='Image_name', how='left')
+    
+    # Drop the 'Image_name' column from merged_df
+    merged_df.drop(columns='Image_name', inplace=True)
+    
+    merged_df.to_csv(merged_csv_path, index=False, header=True)
+    
 
 def classify_sessions(sessions):
     '''
@@ -106,7 +124,7 @@ def classify_sessions(sessions):
             results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
     return results_of_all_sessions
 
-def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path):
+def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path, merged_csv_path):
     '''
     Function to restructure sessions folders to be "Zenodo ready"
     # Input:
@@ -121,7 +139,9 @@ def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt
         - annot_path:
             ## path where multilabel annotations csv will be created. (ex: 'results_csv/annotations_.csv')
         - output_txt_path:
-            ## folder path where a txt file will be created to monitor multilabel annotations progression. (ex: 'results_txt/output_.txt')
+            ## path where a txt file will be created to monitor multilabel annotations progression. (ex: 'results_txt/output_.txt')
+        - merged_csv_path:
+            ## path where annotation csv will be merged with gps infos to create a new csv (ex: 'results_csv/merged_.csv')
     # Output:
         - sessions folders "Zenodo ready"
     '''
@@ -170,6 +190,11 @@ def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt
         annot_path = annot_path[:-4] + session_name + annot_path[-4:]
         df.to_csv(annot_path, index = False, header = True)
         print(f'\nAnnotations CSV of {session} successfully created at {annot_path}\n')
+        
+        # join GPS metadata to annotation file
+        gps_info_csv_path = f'{session}/GPS/photos_location_{session_name}.csv'
+        merged_csv_path = merged_csv_path[:-4] + session_name + merged_csv_path[-4:]
+        join_GPS_metadata(annot_path, gps_info_csv_path, merged_csv_path)
             
             
     
@@ -182,11 +207,13 @@ def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt
 # class_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/session_2017_11_18_paddle_Prairie.csv'
 # annot_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/annotations_.csv'
 # output_txt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_txt/output_.txt'
+# merged_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/merged_.csv'
 
 sessions = ['sessions/session_2017_11_18_paddle_Prairie']
 dest_path = ''
 class_path = 'results_csv/session_2017_11_18_paddle_Prairie.csv'
 annot_path = 'results_csv/annotations_.csv'
 output_txt_path = 'results_txt/output_.txt'
+merged_csv_path = 'results_csv/merged_.csv'
 
-restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path)
+restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path, merged_csv_path)
