@@ -1,4 +1,5 @@
-filters/
+results_csv/
+results_txt/
 sessions/
 useless/
 predicted_images/

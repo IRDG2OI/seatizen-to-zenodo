@@ -11,12 +11,15 @@ from jacques.inference import output
 import os
 import pandas as pd
 import shutil
-from add_mask_predictions import predict_image
+from test_multilabel import write_csv
 
 # checkpoint path
-# ckpt_path = 'model_checkpoint_v0.ckpt'
-ckpt_path = 'epoch=7-step=2056.ckpt'
-# ckpt_path = 'epoch=8-step=1412.ckpt'
+# jacques_ckpt_path = 'model_checkpoint_v0.ckpt'
+# jacques_ckpt_path = 'epoch=8-step=1412.ckpt'
+jacques_ckpt_path = 'epoch=7-step=2056.ckpt'
+# jacques_ckpt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/models/epoch=7-step=2056.ckpt'
+multilabel_ckpt_path = 'multilabel_with_sable.pth'
+# multilabel_ckpt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/models/multilabel_with_sable.pth'
 
 # get folder list that contains images (['DCIM/100GOPRO/', 'DCIM/101GOPRO/'])
 def get_subfolders(folder_path):
@@ -24,7 +27,7 @@ def get_subfolders(folder_path):
     for item in os.listdir(folder_path):
         item_path = os.path.join(folder_path, item)
         if os.path.isdir(item_path) and 'GOPRO' in item:
-            subfolder_name = f"DCIM/{os.path.basename(item_path)}/"
+            subfolder_name = f"DCIM/{os.path.basename(item_path)}"
             subfolders.append(subfolder_name)
     return subfolders
 
@@ -93,31 +96,32 @@ def classify_sessions(sessions):
     # classification of useful and useless images of all sessions
     results_of_all_sessions = pd.DataFrame(columns = ['dir', 'image', 'class'])
     for session in list_of_sessions:
-        print("----------------------------------------")
+        print("-----------------------------------------------")
         print(session)
-        print("----------------------------------------")
+        print("-----------------------------------------------")
         list_of_dir = get_subfolders(f'{session}/DCIM/')
         for directory in list_of_dir:
             print('\n' + directory)
-            results = predictor.classify_useless_images(folder_path=os.path.join(session, directory),
-                                                        ckpt_path=ckpt_path)
+            results = predictor.classify_useless_images(folder_path=os.path.join(session, directory), ckpt_path=jacques_ckpt_path)
             results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
     return results_of_all_sessions
 
-def restructure_sessions(sessions, dest_path, csv_path, pred_path):
+def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path):
     '''
     Function to restructure sessions folders to be "Zenodo ready"
     # Input:
         - sessions:
             ## the list of sessions:
-                either a single directory that contains every sessions (ex: 'sessions/')
+                either a single directory that contains every sessions. (ex: 'sessions/')
                 or a list of sessions path (ex: ['sessions/session_2017_11_19_paddle_Black_Rocks'])
         - dest_path:
-            ## destination path where useless images will me moved (ex: 'useless/session_2017_11_19_paddle_Black_Rocks_useless_images/')
-        - csv_path:
-            ## path where classification result csv will be written (ex: 'filters/session_2017_11_19_paddle_Black_Rocks.csv')
-        - pred_path:
-            ## path where annotated images will be created (ex: 'predicted_images/')
+            ## destination path where useless images will me moved. (ex: 'useless/session_2017_11_19_paddle_Black_Rocks_useless_images/')
+        - class_path:
+            ## path where classification result csv will be written. (ex: 'results_csv/classifications_results.csv')
+        - annot_path:
+            ## path where multilabel annotations csv will be created. (ex: 'results_csv/annotations_.csv')
+        - output_txt_path:
+            ## folder path where a txt file will be created to monitor multilabel annotations progression. (ex: 'results_txt/output_.txt')
     # Output:
         - sessions folders "Zenodo ready"
     '''
@@ -125,47 +129,64 @@ def restructure_sessions(sessions, dest_path, csv_path, pred_path):
     results_of_all_sessions = classify_sessions(sessions)
     
     # move useless images
-    output.move_images(results_of_all_sessions,
-               dest_path = dest_path,
-               who_moves = 'useless',
-               copy_or_cut = 'cut'
-               )
-    print(f'\nUseless images moved to {dest_path}')
+    #output.move_images(results_of_all_sessions,
+    #           dest_path = dest_path,
+    #           who_moves = 'useless',
+    #           copy_or_cut = 'cut'
+    #           )
+    #print(f'\nUseless images moved to {dest_path}')
     
     # export results to csv file
-    suffix = f"_jacques-v0.2.1_model-{ckpt_path.split('.')[0]}" # adding jacques version and classification model version to csv filename
-    csv_path = csv_path[:-4] + suffix + csv_path[-4:]
-    results_of_all_sessions.to_csv(csv_path, index = False, header = True)
-    print(f'\nClassification informations written at {csv_path}')
+    suffix = f"_jacques-v0.2.1_model-{jacques_ckpt_path.split('.')[0]}" # adding jacques version and classification model version to csv filename
+    class_path = class_path[:-4] + suffix + class_path[-4:]
+    results_of_all_sessions.to_csv(class_path, index = False, header = True)
+    print(f'\nClassification informations written at {class_path}\n')
     
     list_of_sessions = get_sessions_list(sessions)
     # operations on each session
-    for session in list_of_sessions:
+    for session in list_of_sessions: 
+        df = pd.DataFrame(columns=['Image_path',"Acropore_branched", "Acropore_digitised", "Acropore_tabular", "Algae_assembly", 
+                   "Algae_limestone", "Algae_sodding", "Dead_coral", "Fish", "Human_object",
+                   "Living_coral", "Millepore", "No_acropore_encrusting", "No_acropore_massive",
+                  "No_acropore_sub_massive",  "Rock", "Sand",
+                   "Scrap", "Sea_cucumber", "Syringodium_isoetifolium",
+                   "Thalassodendron_ciliatum",  "Useless"])
+        
         path =f'{session}/DCIM/'
         
         # delete BEFORE and AFTER folders if they exists
-        delete_folders(path)
+        #delete_folders(path)
         
-        # adding mask predictions
+        session_name = session.split('/')[-1]
+        output_txt_path = output_txt_path[:-4] + session_name + output_txt_path[-4:]
+        
+        # adding multilabel annotations
         list_of_dir = get_subfolders(path)
         for directory in list_of_dir:
-            print("Mask predictions generation...\n")
-            print(directory)
+            print(f"\nMultilabel annotations of images located in {directory}...")
             images_path = os.path.join(session, directory)
+            df = write_csv(df, images_path, multilabel_ckpt_path, output_txt_path)
+        
+        annot_path = annot_path[:-4] + session_name + annot_path[-4:]
+        df.to_csv(annot_path, index = False, header = True)
+        print(f'\nAnnotations CSV of {session} successfully created at {annot_path}\n')
             
-            outpath = os.path.join(pred_path, f'{session}/{directory}/')
-            if not os.path.exists(outpath):
-                os.makedirs(outpath)
-                
-            predict_image(images_path, outpath)
+            
     
     # to-do:
         # renommage des repertoires en fonction args fonction (si renseigné -> renommage)
-  
-# sessions = 'test/'
-sessions = ['sessions/session_2017_11_18_paddle_Prairie']
-dest_path = 'useless/session_2017_11_18_paddle_Prairie_useless_images/'
-csv_path = 'filters/session_2017_11_18_paddle_Prairie.csv'
-pred_path = 'predicted_images/'
 
-restructure_sessions(sessions, dest_path, csv_path, pred_path)
+
+# sessions = ['/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated/session_2017_11_18_paddle_Prairie']
+# dest_path = ''
+# class_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/session_2017_11_18_paddle_Prairie.csv'
+# annot_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/annotations_.csv'
+# output_txt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_txt/output_.txt'
+
+sessions = ['sessions/session_2017_11_18_paddle_Prairie']
+dest_path = ''
+class_path = 'results_csv/session_2017_11_18_paddle_Prairie.csv'
+annot_path = 'results_csv/annotations_.csv'
+output_txt_path = 'results_txt/output_.txt'
+
+restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path)

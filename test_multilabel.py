@@ -44,7 +44,7 @@ from sklearn.metrics import confusion_matrix
 #        pass
 #    foo = cc.create_experiment(EXP_NAME)
 ## If you want to use the GPU, set GPU_MODE TO 1 in config file
-device = "cpu"
+#device = "cpu"
 #use_gpu = GPU_MODE
 #if use_gpu:
 #    #torch.cuda.set_device(CUDA_DEVICE)
@@ -69,13 +69,13 @@ from itertools import compress, chain
 ###############################################################################
 ###############################################################################
 # session name
-session_name = "multilabel_session_2017_11_04_kite_Le_Morne_100GOPRO"
+#session_name = "multilabel_session_2017_11_04_kite_Le_Morne_100GOPRO"
 # txt path with informations about the session
-output_txt_path = "/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_txt/output_" + session_name + ".txt"
+#output_txt_path = "/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_txt/output_" + session_name + ".txt"
 #output_txt_path = "/home1/datahome/mcontini/multilabelTest/results_txt/output_500_iterations.txt"
-file = open(output_txt_path, "a+")
-file.write("Simulation started on %s \r\n" %device)
-file.close()
+#file = open(output_txt_path, "a+")
+#file.write("Simulation started on %s \r\n" %device)
+#file.close()
 ###############################################################################
 ###############################################################################
 classLabels = ["Acropore_branched", "Acropore_digitised", "Acropore_tabular", "Algae_assembly", 
@@ -178,7 +178,7 @@ def predict_probabilities(image_path, checkpoint_path):
     return output
 ###############################################################################
 ###############################################################################
-def write_csv(df, test_path, checkpoint_path):
+def write_csv(df, test_path, checkpoint_path, output_txt_path):
     files = os.listdir(test_path)
     # we sort the images by name
     files = sorted(files)
@@ -206,21 +206,21 @@ def write_csv(df, test_path, checkpoint_path):
 ###############################################################################
 ###############################################################################
 # flag to save the csv file with paths and classes probabilities
-save_csv = 1
+#save_csv = 1
 # create csv file for predicted images
-df = pd.DataFrame(columns=['Image_path',"Acropore_branched", "Acropore_digitised", "Acropore_tabular", "Algae_assembly", 
-               "Algae_limestone", "Algae_sodding", "Dead_coral", "Fish", "Human_object",
-               "Living_coral", "Millepore", "No_acropore_encrusting", "No_acropore_massive",
-              "No_acropore_sub_massive",  "Rock", "Sand",
-               "Scrap", "Sea_cucumber", "Syringodium_isoetifolium",
-               "Thalassodendron_ciliatum",  "Useless"])
+#df = pd.DataFrame(columns=['Image_path',"Acropore_branched", "Acropore_digitised", "Acropore_tabular", "Algae_assembly", 
+#               "Algae_limestone", "Algae_sodding", "Dead_coral", "Fish", "Human_object",
+#               "Living_coral", "Millepore", "No_acropore_encrusting", "No_acropore_massive",
+#              "No_acropore_sub_massive",  "Rock", "Sand",
+#               "Scrap", "Sea_cucumber", "Syringodium_isoetifolium",
+#               "Thalassodendron_ciliatum",  "Useless"])
 # folder path with all the images
-source = "/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated/session_2017_11_04_kite_Le_Morne/DCIM/100GOPRO"
+#source = "/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated/session_2017_11_04_kite_Le_Morne/DCIM/100GOPRO"
 # NN path
-checkpoint_path = "/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/models/multilabel_with_sable.pth"
-df = write_csv(df, source, checkpoint_path)
-if save_csv :
-    # output df path
-    df_path = "/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/df_" + session_name + ".csv"
-    # save dataframe with images and predictions 
-    df.to_csv (df_path, index = False, header=True)
+#checkpoint_path = "/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/models/multilabel_with_sable.pth"
+#df = write_csv(df, source, checkpoint_path)
+#if save_csv :
+#    # output df path
+#    df_path = "/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/df_" + session_name + ".csv"
+#    # save dataframe with images and predictions 
+#    df.to_csv (df_path, index = False, header=True)
