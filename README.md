@@ -43,7 +43,7 @@ pip install fiftyone
 
 ### Usage
 Load all the imports then use the function **restructure_sessions()** in order to restructure the sessions folders of your choice to be Zenodo ready. <br/>
-This function takes five arguments:
+This function takes six arguments:
 - **sessions** <br/>
 It's the list of sessions, it can be either a single directory that contains every sessions (ex: ***'sessions/'***) or a list of sessions paths. (ex: ***['sessions/session_2017_11_19_paddle_Black_Rocks']***).
 
@@ -59,11 +59,15 @@ It's the folder path where multilabel annotations csv will be created. (ex: ***'
 - **output_txt_path** <br/>
 It's the folder path where a txt file will be created to monitor multilabel annotations progression. (ex: ***'results_txt/output_.txt'***)
 
-The execution of **restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path)** will:
+- **merged_csv_path** <br/>
+It's the path where annotation csv will be merged with gps infos to create a new csv (ex: **'results_csv/merged_.csv'**)
+
+The execution of **restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path, merged_csv_path)** will:
 1. Apply the jacques classification model on each session, moving every useless images to **dest_path**.
 2. Export the classification results to a csv file written at **class_path**.
 3. Delete BEFORE and AFTER folders if they exists.
 4. Create multilabel annotations csv at **annot_path**.
+5. Merge multilabel annotations with gps informations (latitude, longitude and date) at **merged_csv_path**.
 
 ---
 <div align="center">
