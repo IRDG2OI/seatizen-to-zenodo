@@ -14,7 +14,7 @@ It uses Jacques, a package to classify useless and useful images according to ma
 1. Clone the git repository
 ```
 cd path/to/installation/folder/
-git clone https://github.com/alexandreBoy/seatizen-to-zenodo.git
+git clone https://github.com/IRDG2OI/seatizen-to-zenodo.git
 cd seatizen-to-zenodo/
 ```
 2. Create your own Python environment in the cloned Git project.
@@ -41,29 +41,29 @@ python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
 pip install fiftyone
 ```
 
-7. Download the prediction model folder and add it to the project folder: </br>
-[Prediction model folder](https://drive.google.com/drive/folders/1pvttMZCSqoM6X1FVXH7XkIE1X6GCxhQT?usp=sharing)
-
 ### Usage
 Load all the imports then use the function **restructure_sessions()** in order to restructure the sessions folders of your choice to be Zenodo ready. <br/>
-This function takes four arguments:
+This function takes five arguments:
 - **sessions** <br/>
-It's the list of sessions, it can be either a single directory that contains every sessions (ex: ***'sessions/'***) or a list of sessions paths (ex: ***['sessions/session_2017_11_19_paddle_Black_Rocks']***).
+It's the list of sessions, it can be either a single directory that contains every sessions (ex: ***'sessions/'***) or a list of sessions paths. (ex: ***['sessions/session_2017_11_19_paddle_Black_Rocks']***).
 
 - **dest_path** <br/>
-It's the folder path where useless images will me moved (ex: ***'useless/session_2017_11_19_paddle_Black_Rocks_useless_images/'***)
+It's the folder path where useless images will me moved. (ex: ***'useless/session_2017_11_19_paddle_Black_Rocks_useless_images/'***)
 
-- **csv_path** <br/>
-It's the folder path where classification result csv will be written (ex: ***'filters/session_2017_11_19_paddle_Black_Rocks.csv'***)
+- **class_path** <br/>
+It's the folder path where classification result csv will be written. (ex: ***'results_csv/classifications_results.csv'***)
 
-- **pred_path** <br/>
-It's the folder path where annotated images will be created (ex: ***'predicted_images/'***)
+- **annot_path** <br/>
+It's the folder path where multilabel annotations csv will be created. (ex: ***'results_csv/annotations_.csv'***)
 
-The execution of **restructure_sessions(sessions, dest_path, csv_path, pred_path)** will:
+- **output_txt_path** <br/>
+It's the folder path where a txt file will be created to monitor multilabel annotations progression. (ex: ***'results_txt/output_.txt'***)
+
+The execution of **restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path)** will:
 1. Apply the jacques classification model on each session, moving every useless images to **dest_path**.
-2. Export the classification results to a csv file written at **csv_path**.
+2. Export the classification results to a csv file written at **class_path**.
 3. Delete BEFORE and AFTER folders if they exists.
-4. Create annotated images with species predictions at **pred_path**.
+4. Create multilabel annotations csv at **annot_path**.
 
 ---
 <div align="center">
