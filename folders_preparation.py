@@ -12,6 +12,7 @@ import os
 import pandas as pd
 import shutil
 from test_multilabel import write_csv
+import torch
 
 # checkpoint path
 # jacques_ckpt_path = 'model_checkpoint_v0.ckpt'
@@ -78,7 +79,8 @@ def move_back_images(csv_path):
     
             # Display the operation for confirmation
             print(f"Moved image '{image_path}' back to '{original_dir}'.")
-            
+
+# merge multilabel annotations csv with GPS metadata (latitude, longitude and date)
 def join_GPS_metadata(annotation_csv_path, gps_info_csv_path, merged_csv_path):
     annot_df = pd.read_csv(annotation_csv_path)
     gps_df = pd.read_csv(gps_info_csv_path)
@@ -94,7 +96,22 @@ def join_GPS_metadata(annotation_csv_path, gps_info_csv_path, merged_csv_path):
     # Drop the 'Image_name' column from merged_df
     merged_df.drop(columns='Image_name', inplace=True)
     
+    # Swapping latitude and longitude
+    merged_df = merged_df.rename(columns = {'decimalLatitude':'decimalLongitude', 'decimalLongitude':'decimalLatitude'})
+    
     merged_df.to_csv(merged_csv_path, index=False, header=True)
+
+# apply probabilities thresholds to the values of multilabel annotations
+def apply_thresholds(merged_csv_path, thresholds_csv_path, final_csv_path):
+    df_1 = pd.read_csv(merged_csv_path)
+    df_2 = pd.read_csv(thresholds_csv_path)
+    
+    for column in df_1.columns:
+        if column in df_2.columns:
+            threshold_value = df_2[column][0]
+            df_1[column] = df_1[column].apply(lambda x: 1 if x > threshold_value else 0)
+            
+    df_1.to_csv(final_csv_path, index=False, header=True)
     
 
 def classify_sessions(sessions):
@@ -124,7 +141,7 @@ def classify_sessions(sessions):
             results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
     return results_of_all_sessions
 
-def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path, merged_csv_path):
+def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path):
     '''
     Function to restructure sessions folders to be "Zenodo ready"
     # Input:
@@ -142,9 +159,19 @@ def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt
             ## path where a txt file will be created to monitor multilabel annotations progression. (ex: 'results_txt/output_.txt')
         - merged_csv_path:
             ## path where annotation csv will be merged with gps infos to create a new csv (ex: 'results_csv/merged_.csv')
+        - thresholds_csv_path:
+            ## path where the csv with thresholds values is located
+        - final_csv_path:
+            ## path of the final csv
     # Output:
         - sessions folders "Zenodo ready"
     '''
+    temp_path = output_txt_path[:-4] + sessions[0].split('/')[-1] + output_txt_path[-4:]
+    file = open(temp_path, "a+")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    file.write("Jacques classification started on %s \r\n" %device)
+    file.close()
+    
     # classification
     results_of_all_sessions = classify_sessions(sessions)
     
@@ -157,7 +184,8 @@ def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt
     #print(f'\nUseless images moved to {dest_path}')
     
     # export results to csv file
-    suffix = f"_jacques-v0.2.1_model-{jacques_ckpt_path.split('.')[0]}" # adding jacques version and classification model version to csv filename
+    model = jacques_ckpt_path.split('/')[-1]
+    suffix = f"_jacques-v0.1.0_model-{model.split('.')[0]}" # adding jacques version and classification model version to csv filename
     class_path = class_path[:-4] + suffix + class_path[-4:]
     results_of_all_sessions.to_csv(class_path, index = False, header = True)
     print(f'\nClassification informations written at {class_path}\n')
@@ -179,6 +207,7 @@ def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt
         
         session_name = session.split('/')[-1]
         output_txt_path = output_txt_path[:-4] + session_name + output_txt_path[-4:]
+        final_csv_path = final_csv_path[:-4] + session_name + final_csv_path[-4:]
         
         # adding multilabel annotations
         list_of_dir = get_subfolders(path)
@@ -195,25 +224,37 @@ def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt
         gps_info_csv_path = f'{session}/GPS/photos_location_{session_name}.csv'
         merged_csv_path = merged_csv_path[:-4] + session_name + merged_csv_path[-4:]
         join_GPS_metadata(annot_path, gps_info_csv_path, merged_csv_path)
+        print(f'Merged GPS metadata with multilabel annotations at {merged_csv_path}\n')
+        
+        # apply thresholds
+        apply_thresholds(merged_csv_path, thresholds_csv_path, final_csv_path)
+        print(f'Applied thresholds to {merged_csv_path}.\nFinal CSV created at {final_csv_path}')
             
             
     
     # to-do:
         # renommage des repertoires en fonction args fonction (si renseigné -> renommage)
+        
+def main():
+    # sessions = ['/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated/session_2017_11_04_kite_Le_Morne']
+    # dest_path = ''
+    # class_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/session_2017_11_04_kite_Le_Morne.csv'
+    # annot_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/annotations_.csv'
+    # output_txt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_txt/output_.txt'
+    # merged_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/merged_.csv'
+    # thresholds_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/multilabel_annotation_thresholds.csv'
+    # final_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/final_.csv'
 
+    sessions = ['sessions/session_2017_11_18_paddle_Prairie']
+    dest_path = ''
+    class_path = 'results_csv/session_2017_11_18_paddle_Prairie.csv'
+    annot_path = 'results_csv/annotations_.csv'
+    output_txt_path = 'results_txt/output_.txt'
+    merged_csv_path = 'results_csv/merged_.csv'
+    thresholds_csv_path = 'multilabel_annotation_thresholds.csv'
+    final_csv_path = 'results_csv/final_.csv'
 
-# sessions = ['/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated/session_2017_11_18_paddle_Prairie']
-# dest_path = ''
-# class_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/session_2017_11_18_paddle_Prairie.csv'
-# annot_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/annotations_.csv'
-# output_txt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_txt/output_.txt'
-# merged_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/merged_.csv'
+    restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path)
 
-sessions = ['sessions/session_2017_11_18_paddle_Prairie']
-dest_path = ''
-class_path = 'results_csv/session_2017_11_18_paddle_Prairie.csv'
-annot_path = 'results_csv/annotations_.csv'
-output_txt_path = 'results_txt/output_.txt'
-merged_csv_path = 'results_csv/merged_.csv'
-
-restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path, merged_csv_path)
+if __name__ == '__main__':
+    main()
