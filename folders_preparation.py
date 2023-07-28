@@ -13,14 +13,17 @@ import pandas as pd
 import shutil
 from test_multilabel import write_csv
 import torch
+import argparse
+import time
+from datetime import datetime
 
 # checkpoint path
 # jacques_ckpt_path = 'model_checkpoint_v0.ckpt'
 # jacques_ckpt_path = 'epoch=8-step=1412.ckpt'
-jacques_ckpt_path = 'epoch=7-step=2056.ckpt'
-# jacques_ckpt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/models/epoch=7-step=2056.ckpt'
-multilabel_ckpt_path = 'multilabel_with_sable.pth'
-# multilabel_ckpt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/models/multilabel_with_sable.pth'
+#jacques_ckpt_path = 'epoch=7-step=2056.ckpt'
+jacques_ckpt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/models/epoch=7-step=2056.ckpt'
+#multilabel_ckpt_path = 'multilabel_with_sable.pth'
+multilabel_ckpt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/models/multilabel_with_sable.pth'
 
 # get folder list that contains images (['DCIM/100GOPRO/', 'DCIM/101GOPRO/'])
 def get_subfolders(folder_path):
@@ -31,6 +34,11 @@ def get_subfolders(folder_path):
             subfolder_name = f"DCIM/{os.path.basename(item_path)}"
             subfolders.append(subfolder_name)
     return subfolders
+
+# List ONLY directories
+def list_directories(path):
+    directories = [entry for entry in os.listdir(path) if os.path.isdir(os.path.join(path, entry))]
+    return directories
 
 # Delete "BEFORE" and "AFTER" folders at specified path if they exists
 def delete_folders(path):
@@ -48,14 +56,16 @@ def delete_folders(path):
         print(f'Deleted folder: {after_path}')
 
 # return the list of sessions
-def get_sessions_list(sessions):
+def get_sessions_list(sessions, session_index):
     if(isinstance(sessions, str)): # if it's a string, it's one directory
         # list sessions automatically from one directory
         directory_of_sessions = sessions
-        list_of_sessions = os.listdir(directory_of_sessions)
+        list_of_sessions = list_directories(directory_of_sessions)
         list_of_sessions = [os.path.join(directory_of_sessions, session) for session in list_of_sessions]
+        list_of_sessions.sort()
+        list_of_sessions = [list_of_sessions[session_index]]
     elif(isinstance(sessions, list)): # if it's a list, sessions are written by hand
-        list_of_sessions = sessions
+        list_of_sessions = [sessions[session_index]]
     
     return list_of_sessions
 
@@ -114,7 +124,7 @@ def apply_thresholds(merged_csv_path, thresholds_csv_path, final_csv_path):
     df_1.to_csv(final_csv_path, index=False, header=True)
     
 
-def classify_sessions(sessions):
+def classify_sessions(sessions, session_index):
     '''
     Function that uses jacques predicator classify_useless_images function to classify given sessions images.
     # Input:
@@ -126,7 +136,7 @@ def classify_sessions(sessions):
         - a dataframe that contains the classification result for the selected sessions images
         
     '''
-    list_of_sessions = get_sessions_list(sessions)
+    list_of_sessions = get_sessions_list(sessions, session_index)
     
     # classification of useful and useless images of all sessions
     results_of_all_sessions = pd.DataFrame(columns = ['dir', 'image', 'class'])
@@ -141,7 +151,7 @@ def classify_sessions(sessions):
             results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
     return results_of_all_sessions
 
-def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path):
+def restructure_sessions(sessions, session_index, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path):
     '''
     Function to restructure sessions folders to be "Zenodo ready"
     # Input:
@@ -173,7 +183,7 @@ def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt
     file.close()
     
     # classification
-    results_of_all_sessions = classify_sessions(sessions)
+    results_of_all_sessions = classify_sessions(sessions, session_index)
     
     # move useless images
     #output.move_images(results_of_all_sessions,
@@ -183,16 +193,19 @@ def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt
     #           )
     #print(f'\nUseless images moved to {dest_path}')
     
-    # export results to csv file
-    model = jacques_ckpt_path.split('/')[-1]
-    suffix = f"_jacques-v0.1.0_model-{model.split('.')[0]}" # adding jacques version and classification model version to csv filename
-    class_path = class_path[:-4] + suffix + class_path[-4:]
-    results_of_all_sessions.to_csv(class_path, index = False, header = True)
-    print(f'\nClassification informations written at {class_path}\n')
+    list_of_sessions = get_sessions_list(sessions, session_index)
     
-    list_of_sessions = get_sessions_list(sessions)
     # operations on each session
     for session in list_of_sessions: 
+        # export results to csv file
+        model = jacques_ckpt_path.split('/')[-1]
+        session_name = session.split('/')[-1]
+        # adding session name, jacques version and classification model version to csv filename
+        suffix = f"{session_name}_jacques-v0.1.0_model-{model.split('.')[0]}"
+        class_path = class_path[:-4] + suffix + class_path[-4:]
+        results_of_all_sessions.to_csv(class_path, index = False, header = True)
+        print(f'\nClassification informations written at {class_path}\n')
+        
         df = pd.DataFrame(columns=['Image_path',"Acropore_branched", "Acropore_digitised", "Acropore_tabular", "Algae_assembly", 
                    "Algae_limestone", "Algae_sodding", "Dead_coral", "Fish", "Human_object",
                    "Living_coral", "Millepore", "No_acropore_encrusting", "No_acropore_massive",
@@ -205,7 +218,6 @@ def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt
         # delete BEFORE and AFTER folders if they exists
         #delete_folders(path)
         
-        session_name = session.split('/')[-1]
         output_txt_path = output_txt_path[:-4] + session_name + output_txt_path[-4:]
         final_csv_path = final_csv_path[:-4] + session_name + final_csv_path[-4:]
         
@@ -236,25 +248,41 @@ def restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt
         # renommage des repertoires en fonction args fonction (si renseigné -> renommage)
         
 def main():
-    # sessions = ['/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated/session_2017_11_04_kite_Le_Morne']
+    start_time = time.time()
+    print(f"Start time: {datetime.now()}")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--session-index",
+                        action="store",
+                        type=int,
+                        default=1,
+                        help="Index of the session that is being processed. Default: 1")
+    args = parser.parse_args()
+    session_index = args.session_index - 1
+    print(f"In main, session_index = {session_index}")
+    
+    # sessions = '/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated/'
     # dest_path = ''
-    # class_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/session_2017_11_04_kite_Le_Morne.csv'
+    # class_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/.csv'
     # annot_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/annotations_.csv'
     # output_txt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_txt/output_.txt'
     # merged_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/merged_.csv'
     # thresholds_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/multilabel_annotation_thresholds.csv'
     # final_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/final_.csv'
 
-    sessions = ['sessions/session_2017_11_18_paddle_Prairie']
-    dest_path = ''
-    class_path = 'results_csv/session_2017_11_18_paddle_Prairie.csv'
-    annot_path = 'results_csv/annotations_.csv'
-    output_txt_path = 'results_txt/output_.txt'
-    merged_csv_path = 'results_csv/merged_.csv'
-    thresholds_csv_path = 'multilabel_annotation_thresholds.csv'
-    final_csv_path = 'results_csv/final_.csv'
-
-    restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path)
+    #sessions = ['sessions/session_2017_11_18_paddle_Prairie']
+    #dest_path = ''
+    #class_path = 'results_csv/session_2017_11_18_paddle_Prairie.csv'
+    #annot_path = 'results_csv/annotations_.csv'
+    #output_txt_path = 'results_txt/output_.txt'
+    #merged_csv_path = 'results_csv/merged_.csv'
+    #thresholds_csv_path = 'multilabel_annotation_thresholds.csv'
+    #final_csv_path = 'results_csv/final_.csv'
+    
+    if session_index < 5:
+        restructure_sessions(sessions, session_index, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path)
+        execution_time = "{:.2f}".format(time.time() - start_time)
+        print(f"End time: {datetime.now()}")
+        print(f"Total execution time: {execution_time}s")
 
 if __name__ == '__main__':
     main()

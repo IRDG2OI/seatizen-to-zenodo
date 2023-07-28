@@ -1,11 +1,10 @@
 #/bin/bash
-#PBS -j oe
 #PBS -q omp
-#PBS -l select=1:ncpus=5:mem=6g
-#PBS -l walltime=00:120:00
+#PBS -l select=1:ncpus=8:mem=10g
+#PBS -l walltime=00:720:00
+#PBS -J 1-10
 #PBS -m n
-#PBS -N session_2017_11_19_paddle_Black_Rocks
-#PBS -o ./results_txt/output_session_2017_11_19_paddle_Black_Rocks.txt
+#PBS -N parallelSessionsProcessing
 #PBS -S /bin/bash
 
 signal_handler() {
@@ -17,5 +16,8 @@ cd /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest
 
 . /appli/anaconda/latest/etc/profile.d/conda.sh
 conda activate /home/datawork-iot-nos/Seatizen/conda-env/jacques_cpu
-python /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/folders_preparation.py
+cd $PBS_O_WORKDIR
+qstat -f $PBS_JOBID
+echo $PBS_ARRAY_INDEX
+python /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/folders_preparation.py --session-index $PBS_ARRAY_INDEX
 conda deactivate
