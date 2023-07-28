@@ -43,31 +43,39 @@ pip install fiftyone
 
 ### Usage
 Load all the imports then use the function **restructure_sessions()** in order to restructure the sessions folders of your choice to be Zenodo ready. <br/>
-This function takes six arguments:
+This function takes eight arguments:
 - **sessions** <br/>
 It's the list of sessions, it can be either a single directory that contains every sessions (ex: ***'sessions/'***) or a list of sessions paths. (ex: ***['sessions/session_2017_11_19_paddle_Black_Rocks']***).
 
 - **dest_path** <br/>
-It's the folder path where useless images will me moved. (ex: ***'useless/session_2017_11_19_paddle_Black_Rocks_useless_images/'***)
+It's the folder path where useless images will me moved. <br/>
+(ex: ***'useless/session_2017_11_19_paddle_Black_Rocks_useless_images/'***)
 
 - **class_path** <br/>
-It's the folder path where classification result csv will be written. (ex: ***'results_csv/classifications_results.csv'***)
+It's the folder path where classification result csv will be written.<br/> (ex: ***'results_csv/classifications_results.csv'***)
 
 - **annot_path** <br/>
-It's the folder path where multilabel annotations csv will be created. (ex: ***'results_csv/annotations_.csv'***)
+It's the folder path where multilabel annotations csv will be created.<br/>(ex: ***'results_csv/annotations_.csv'***)
 
 - **output_txt_path** <br/>
-It's the folder path where a txt file will be created to monitor multilabel annotations progression. (ex: ***'results_txt/output_.txt'***)
+It's the folder path where a txt file will be created to monitor multilabel annotations progression. <br/>(ex: ***'results_txt/output_.txt'***)
 
 - **merged_csv_path** <br/>
-It's the path where annotation csv will be merged with gps infos to create a new csv (ex: **'results_csv/merged_.csv'**)
+It's the path where annotation csv will be merged with gps infos to create a new csv. <br/>(ex: **'results_csv/merged_.csv'**)
 
-The execution of **restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path, merged_csv_path)** will:
+- **thresholds_csv_path** <br/>
+It's the path where the csv file with thresholds values is located.
+
+- **final_csv_path** <br/>
+It's where the final csv file will be created. <br/>(ex: **'results_csv/final_.csv'**)
+
+The execution of **restructure_sessions(sessions, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path)** will:
 1. Apply the jacques classification model on each session, moving every useless images to **dest_path**.
 2. Export the classification results to a csv file written at **class_path**.
 3. Delete BEFORE and AFTER folders if they exists.
 4. Create multilabel annotations csv at **annot_path**.
 5. Merge multilabel annotations with gps informations (latitude, longitude and date) at **merged_csv_path**.
+6. Apply probabilities thresholds to the multilabel annotations values and create the final csv file at **final_csv_path**.
 
 ---
 <div align="center">
