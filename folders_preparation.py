@@ -16,6 +16,7 @@ import torch
 import argparse
 import time
 from datetime import datetime
+import glob
 
 # checkpoint path
 # jacques_ckpt_path = 'model_checkpoint_v0.ckpt'
@@ -122,6 +123,47 @@ def apply_thresholds(merged_csv_path, thresholds_csv_path, final_csv_path):
             df_1[column] = df_1[column].apply(lambda x: 1 if x > threshold_value else 0)
             
     df_1.to_csv(final_csv_path, index=False, header=True)
+    
+# filter out useless images in the final csv based on jacques classification csv
+def filter_useless_images(classification_csv, final_csv_path):
+    df_1 = pd.read_csv(classification_csv)
+    df_2 = pd.read_csv(final_csv_path)
+    
+    # Extract image name from image path
+    df_2['image'] = df_2['Image_path'].str.split('/').str[-1]
+    
+    # Filter out the 'useless' images from the df_1
+    df1_useful = df_1[df_1['class'] == 'useful']
+    
+    # Merge the two DF on the 'image' column and keep only rows that exist in both DF
+    final_df = pd.merge(df_2, df1_useful, on='image', how='inner')
+    
+    # Removing useless columns
+    final_df = final_df.drop(columns=['dir', 'class', 'image'])
+    
+    final_csv_path = final_csv_path[:-4] + '_filtered' + final_csv_path[-4:]
+    
+    final_df.to_csv(final_csv_path, index=False, header=True)
+
+# merge all final csv files ending with 'filtered' located at csv_path in one csv file
+def merge_all_final_csv(csv_path):
+    directory_path = os.path.dirname(csv_path)
+    wildcard_pattern = os.path.join(directory_path, '*filtered.csv')
+    file_list = glob.glob(wildcard_pattern)
+    
+    dfs = []
+    
+    for file in file_list:
+        df = pd.read_csv(file)
+        dfs.append(df)
+    
+    merged_df = pd.concat(dfs, ignore_index=True)
+    
+    merged_df.sort_values(by='Image_path', inplace=True)
+    
+    merged_csv_path = os.path.join(directory_path, 'all_sessions_data.csv')
+    
+    merged_df.to_csv(merged_csv_path, index=False, header=True)
     
 
 def classify_sessions(sessions, session_index):
@@ -240,12 +282,12 @@ def restructure_sessions(sessions, session_index, dest_path, class_path, annot_p
         
         # apply thresholds
         apply_thresholds(merged_csv_path, thresholds_csv_path, final_csv_path)
-        print(f'Applied thresholds to {merged_csv_path}.\nFinal CSV created at {final_csv_path}')
+        print(f'Applied thresholds to {merged_csv_path}.\nFinal CSV created at {final_csv_path}\n')
+        
+        # filtering out useless images
+        filter_useless_images(class_path, final_csv_path)
+        print(f'Filtered out useless images from {final_csv_path}\n')
             
-            
-    
-    # to-do:
-        # renommage des repertoires en fonction args fonction (si renseigné -> renommage)
         
 def main():
     start_time = time.time()
@@ -260,14 +302,14 @@ def main():
     session_index = args.session_index - 1
     print(f"In main, session_index = {session_index}")
     
-    # sessions = '/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated/'
-    # dest_path = ''
-    # class_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/.csv'
-    # annot_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/annotations_.csv'
-    # output_txt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_txt/output_.txt'
-    # merged_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/merged_.csv'
-    # thresholds_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/multilabel_annotation_thresholds.csv'
-    # final_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/final_.csv'
+    sessions = '/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated/'
+    dest_path = ''
+    class_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/.csv'
+    annot_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/annotations_.csv'
+    output_txt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_txt/output_.txt'
+    merged_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/merged_.csv'
+    thresholds_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/multilabel_annotation_thresholds.csv'
+    final_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/final_.csv'
 
     #sessions = ['sessions/session_2017_11_18_paddle_Prairie']
     #dest_path = ''
@@ -278,10 +320,11 @@ def main():
     #thresholds_csv_path = 'multilabel_annotation_thresholds.csv'
     #final_csv_path = 'results_csv/final_.csv'
     
-    if session_index < 5:
+    if session_index < 10:
         restructure_sessions(sessions, session_index, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path)
         execution_time = "{:.2f}".format(time.time() - start_time)
-        print(f"End time: {datetime.now()}")
+        print("\n========================================================")
+        print(f"\nEnd time: {datetime.now()}")
         print(f"Total execution time: {execution_time}s")
 
 if __name__ == '__main__':
