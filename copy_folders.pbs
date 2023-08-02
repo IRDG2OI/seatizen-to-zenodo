@@ -1,0 +1,23 @@
+#/bin/bash
+#PBS -q omp
+#PBS -l select=1:ncpus=2:mem=2g
+#PBS -l walltime=00:10:00
+#PBS -J 1-3
+#PBS -m n
+#PBS -N copySessionsFolders
+#PBS -S /bin/bash
+
+signal_handler() {
+	pkill --parent "${$}"
+}
+
+trap signal_handler EXIT
+
+cd /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest
+
+. /appli/anaconda/latest/etc/profile.d/conda.sh
+conda activate /home/datawork-iot-nos/Seatizen/conda-env/jacques_cpu
+python /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/copy_folders.py --session-index $PBS_ARRAY_INDEX
+conda deactivate
+
+qstat -f $PBS_JOBID
