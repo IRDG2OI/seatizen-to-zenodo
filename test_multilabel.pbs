@@ -1,8 +1,8 @@
 #/bin/bash
 #PBS -q omp
 #PBS -l select=1:ncpus=8:mem=10g
-#PBS -l walltime=06:00:00
-#PBS -J 1-10
+#PBS -l walltime=10:00:00
+#PBS -J 1-84
 #PBS -m n
 #PBS -N parallelSessionsProcessing
 #PBS -S /bin/bash

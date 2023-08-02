@@ -17,6 +17,7 @@ import argparse
 import time
 from datetime import datetime
 import glob
+from tqdm import tqdm
 
 # checkpoint path
 # jacques_ckpt_path = 'model_checkpoint_v0.ckpt'
@@ -70,14 +71,38 @@ def get_sessions_list(sessions, session_index):
     
     return list_of_sessions
 
+def move_out_images(results_df, dest_path, who_moves=['useless', 'useful'], copy_or_cut=['copy', 'cut']):
+    '''
+    Function that copy/paste or cut/paste images predicted as useless or useful in the destination path.
+    # Input:
+    - results_df : a pandas dataframe with 3 columns 'dir', 'image' and 'class'
+    - dest_path : the path where the images will be moved or pasted
+    - who_moves : whether to move the useful or useless images in another directory
+    - copy_or_cut: whether to copy/paste or cut/paste the images
+    # Output:
+    Images are copied or cut into the destination path
+    '''
+    #check if dest_path exists (create if needed)
+    os.makedirs(dest_path, exist_ok=True)
+
+    #select images to move in the result dataframe
+    images_to_move = results_df[results_df['class']==who_moves]
+    path_images_to_move = [os.path.join(dir, image) for dir, image in zip(images_to_move['dir'], images_to_move['image'])]
+
+    for image_src in tqdm(path_images_to_move):
+        if copy_or_cut=='cut':
+            shutil.move(image_src, os.path.join(dest_path, os.path.basename(image_src)))
+        elif copy_or_cut=='copy':
+            shutil.copy(image_src, os.path.join(dest_path, os.path.basename(image_src)))
+
 # move back useless images to their original folders
-def move_back_images(csv_path):
+def move_back_images(csv_path, useless_img_path):
     # Read the CSV file into a DataFrame
     df = pd.read_csv(csv_path)
     
     # Iterate over each row in the DataFrame
     for index, row in df.iterrows():
-        image_path = 'useless/' + row['dir'].split('/')[1] + '_useless_images/' + row['image']
+        image_path = useless_img_path + row['image']
         image_class = row['class']
         original_dir = row['dir']
     
@@ -228,12 +253,12 @@ def restructure_sessions(sessions, session_index, dest_path, class_path, annot_p
     results_of_all_sessions = classify_sessions(sessions, session_index)
     
     # move useless images
-    #output.move_images(results_of_all_sessions,
-    #           dest_path = dest_path,
-    #           who_moves = 'useless',
-    #           copy_or_cut = 'cut'
-    #           )
-    #print(f'\nUseless images moved to {dest_path}')
+    move_out_images(results_of_all_sessions,
+               dest_path = dest_path,
+               who_moves = 'useless',
+               copy_or_cut = 'cut'
+               )
+    print(f'\nUseless images moved to {dest_path}')
     
     list_of_sessions = get_sessions_list(sessions, session_index)
     
@@ -260,7 +285,7 @@ def restructure_sessions(sessions, session_index, dest_path, class_path, annot_p
         # delete BEFORE and AFTER folders if they exists
         #delete_folders(path)
         
-        output_txt_path = output_txt_path[:-4] + session_name + output_txt_path[-4:]
+        output_txt_path = output_txt_path[:-4] + '_' + session_name + output_txt_path[-4:]
         final_csv_path = final_csv_path[:-4] + session_name + final_csv_path[-4:]
         
         # adding multilabel annotations
@@ -285,13 +310,14 @@ def restructure_sessions(sessions, session_index, dest_path, class_path, annot_p
         print(f'Applied thresholds to {merged_csv_path}.\nFinal CSV created at {final_csv_path}\n')
         
         # filtering out useless images
-        filter_useless_images(class_path, final_csv_path)
-        print(f'Filtered out useless images from {final_csv_path}\n')
+        #filter_useless_images(class_path, final_csv_path)
+        #print(f'Filtered out useless images from {final_csv_path}\n')
             
         
 def main():
     start_time = time.time()
     print(f"Start time: {datetime.now()}")
+    start_str = datetime.strftime(datetime.now(), '%Y-%m-%d_%H:%M:%S')
     parser = argparse.ArgumentParser()
     parser.add_argument("--session-index",
                         action="store",
@@ -302,14 +328,14 @@ def main():
     session_index = args.session_index - 1
     print(f"In main, session_index = {session_index}")
     
-    sessions = '/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated/'
-    dest_path = ''
-    class_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/.csv'
-    annot_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/annotations_.csv'
-    output_txt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_txt/output_.txt'
-    merged_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/merged_.csv'
+    sessions = '/home3/scratch/aboyer/mauritiusSessions/'
+    dest_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/useless_images/'
+    class_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/results_csv/classification_.csv'
+    annot_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/results_csv/annotations_.csv'
+    output_txt_path = f'/home3/datawork/aboyer/mauritiusSessionsOutput/results_txt/output_{start_str}.txt'
+    merged_csv_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/results_csv/merged_.csv'
     thresholds_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/multilabel_annotation_thresholds.csv'
-    final_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/results_csv/final_.csv'
+    final_csv_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/results_csv/final_.csv'
 
     #sessions = ['sessions/session_2017_11_18_paddle_Prairie']
     #dest_path = ''
@@ -320,7 +346,7 @@ def main():
     #thresholds_csv_path = 'multilabel_annotation_thresholds.csv'
     #final_csv_path = 'results_csv/final_.csv'
     
-    if session_index < 10:
+    if session_index < 84:
         restructure_sessions(sessions, session_index, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path)
         execution_time = "{:.2f}".format(time.time() - start_time)
         print("\n========================================================")
