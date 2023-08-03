@@ -33,7 +33,7 @@ def main():
     destination_folder = os.path.join('/home3/scratch/aboyer/mauritiusSessions', session)
     session_path = os.path.join(source_folder, session)
 
-    if session_index < 3:
+    if session_index < 84:
         if os.path.exists(destination_folder):
             print(f"{session} already copied.\n")
             print("========================================================\n")
