@@ -30,10 +30,10 @@ def main():
     sessions = list_directories(source_folder)
     sessions.sort()
     session = sessions[session_index]
-    destination_folder = os.path.join('/home3/scratch/aboyer/mauritiusSessions', session)
+    destination_folder = os.path.join('/home3/datawork/aboyer/mauritiusSessions', session)
     session_path = os.path.join(source_folder, session)
 
-    if session_index < 84:
+    if session_index < 42:
         if os.path.exists(destination_folder):
             print(f"{session} already copied.\n")
             print("========================================================\n")

@@ -87,6 +87,9 @@ def move_out_images(csv_file, destination_directory, who_moves=['useless', 'usef
     # Filter rows with the chosen class
     useless_images = df[df["class"] == who_moves]
     
+    # Create destination directory if it doesn't exists
+    os.makedirs(destination_directory, exist_ok=True)
+    
     # Move images to another directory
     for _, row in useless_images.iterrows():
         image_filename = row["image"]
@@ -176,10 +179,10 @@ def filter_useless_images(classification_csv, final_csv_path):
     
     final_df.to_csv(final_csv_path, index=False, header=True)
 
-# merge all final csv files ending with 'filtered' located at csv_path in one csv file
+# merge all final csv files starting with 'final' located at csv_path in one csv file
 def merge_all_final_csv(csv_path):
     directory_path = os.path.dirname(csv_path)
-    wildcard_pattern = os.path.join(directory_path, '*filtered.csv')
+    wildcard_pattern = os.path.join(directory_path, 'final*.csv')
     file_list = glob.glob(wildcard_pattern)
     
     dfs = []
@@ -220,8 +223,11 @@ def classify_sessions(sessions, session_index):
         list_of_dir = get_subfolders(f'{session}/DCIM/')
         for directory in list_of_dir:
             print('\n' + directory)
-            results = predictor.classify_useless_images(folder_path=os.path.join(session, directory), ckpt_path=jacques_ckpt_path)
-            results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
+            try:
+                results = predictor.classify_useless_images(folder_path=os.path.join(session, directory), ckpt_path=jacques_ckpt_path)
+                results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
+            except Exception as e:
+                print(f"\n[ERROR] Classification error in the directory {directory}: {e}")
     return results_of_all_sessions
 
 def restructure_sessions(sessions, session_index, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path):
@@ -267,6 +273,7 @@ def restructure_sessions(sessions, session_index, dest_path, class_path, annot_p
         session_name = session.split('/')[-1]
         # adding session name, jacques version and classification model version to csv filename
         suffix = f"{session_name}_jacques-v0.1.0_model-{model.split('.')[0]}"
+        class_path = os.path.join(class_path, session_name+'/LABEL/classification_.csv')
         class_path = class_path[:-4] + suffix + class_path[-4:]
         results_of_all_sessions.to_csv(class_path, index = False, header = True)
         print(f'\nClassification informations written at {class_path}\n')
@@ -330,9 +337,9 @@ def main():
     session_index = args.session_index - 1
     print(f"In main, session_index = {session_index}")
     
-    sessions = '/home3/scratch/aboyer/mauritiusSessions/'
+    sessions = '/home3/datawork/aboyer/mauritiusSessions/'
     dest_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/useless_images/'
-    class_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/results_csv/classification_.csv'
+    class_path = '/home3/datawork/aboyer/mauritiusSessions/'
     annot_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/results_csv/annotations_.csv'
     output_txt_path = f'/home3/datawork/aboyer/mauritiusSessionsOutput/results_txt/output_{start_str}.txt'
     merged_csv_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/results_csv/merged_.csv'
@@ -348,7 +355,7 @@ def main():
     #thresholds_csv_path = 'multilabel_annotation_thresholds.csv'
     #final_csv_path = 'results_csv/final_.csv'
     
-    if session_index < 84:
+    if session_index < 42:
         restructure_sessions(sessions, session_index, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path)
         execution_time = "{:.2f}".format(time.time() - start_time)
         print("\n========================================================")
