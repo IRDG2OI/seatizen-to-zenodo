@@ -145,6 +145,20 @@ def join_GPS_metadata(annotation_csv_path, gps_info_csv_path, merged_csv_path):
     merged_df = merged_df.rename(columns = {'decimalLatitude':'decimalLongitude', 'decimalLongitude':'decimalLatitude'})
     
     merged_df.to_csv(merged_csv_path, index=False, header=True)
+    
+# get a list of merged files from a given path
+def get_merged_files(path):
+    merged_files = []
+    
+    # Get a list of all files and directories in the given path
+    files_and_dirs = os.listdir(path)
+    
+    # Filter out the files that start with 'merged'
+    for file in files_and_dirs:
+        if file.startswith('merged') and os.path.isfile(os.path.join(path, file)):
+            merged_files.append(file)
+    
+    return merged_files
 
 # apply probabilities thresholds to the values of multilabel annotations
 def apply_thresholds(merged_csv_path, thresholds_csv_path, final_csv_path):
@@ -154,7 +168,7 @@ def apply_thresholds(merged_csv_path, thresholds_csv_path, final_csv_path):
     for column in df_1.columns:
         if column in df_2.columns:
             threshold_value = df_2[column][0]
-            df_1[column] = df_1[column].apply(lambda x: 1 if x > threshold_value else 0)
+            df_1[column] = df_1[column].apply(lambda x: x if x > threshold_value else 0)
             
     df_1.to_csv(final_csv_path, index=False, header=True)
     
@@ -182,7 +196,7 @@ def filter_useless_images(classification_csv, final_csv_path):
 # merge all final csv files starting with 'final' located at csv_path in one csv file
 def merge_all_final_csv(csv_path):
     directory_path = os.path.dirname(csv_path)
-    wildcard_pattern = os.path.join(directory_path, 'final*.csv')
+    wildcard_pattern = os.path.join(directory_path, 'final_bis_*.csv')
     file_list = glob.glob(wildcard_pattern)
     
     dfs = []
@@ -195,7 +209,7 @@ def merge_all_final_csv(csv_path):
     
     merged_df.sort_values(by='Image_path', inplace=True)
     
-    merged_csv_path = os.path.join(directory_path, 'all_sessions_data.csv')
+    merged_csv_path = os.path.join(directory_path, 'all_sessions_data_bis.csv')
     
     merged_df.to_csv(merged_csv_path, index=False, header=True)
     
@@ -355,7 +369,7 @@ def main():
     #thresholds_csv_path = 'multilabel_annotation_thresholds.csv'
     #final_csv_path = 'results_csv/final_.csv'
     
-    if session_index < 42:
+    if session_index < 21:
         restructure_sessions(sessions, session_index, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path)
         execution_time = "{:.2f}".format(time.time() - start_time)
         print("\n========================================================")
