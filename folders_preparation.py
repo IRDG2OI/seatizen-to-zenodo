@@ -18,6 +18,7 @@ import time
 from datetime import datetime
 import glob
 from tqdm import tqdm
+from predict import herbier_model
 
 # checkpoint path
 # jacques_ckpt_path = 'model_checkpoint_v0.ckpt'
@@ -131,7 +132,8 @@ def join_GPS_metadata(annotation_csv_path, gps_info_csv_path, merged_csv_path):
     gps_df = pd.read_csv(gps_info_csv_path)
     
     # Extract image names from the file paths
-    annot_df['Image_name'] = annot_df['Image_path'].str.split('/').str[-1]
+#     annot_df['Image_name'] = annot_df['Image_path'].str.split('/').str[-1]
+    annot_df['Image_name'] = annot_df['image']
     gps_df['Image_name'] = gps_df['photo_relative_file_path'].str.split('/').str[-1]
     
     # Merge the DataFrames based on the image names
@@ -196,7 +198,7 @@ def filter_useless_images(classification_csv, final_csv_path):
 # merge all final csv files starting with 'final' located at csv_path in one csv file
 def merge_all_final_csv(csv_path):
     directory_path = os.path.dirname(csv_path)
-    wildcard_pattern = os.path.join(directory_path, 'final_bis_*.csv')
+    wildcard_pattern = os.path.join(directory_path, 'merged_*.csv')
     file_list = glob.glob(wildcard_pattern)
     
     dfs = []
@@ -207,9 +209,10 @@ def merge_all_final_csv(csv_path):
     
     merged_df = pd.concat(dfs, ignore_index=True)
     
-    merged_df.sort_values(by='Image_path', inplace=True)
+#     merged_df.sort_values(by='Image_path', inplace=True)
+    merged_df.sort_values(by='dir', inplace=True)
     
-    merged_csv_path = os.path.join(directory_path, 'all_sessions_data_bis.csv')
+    merged_csv_path = os.path.join(directory_path, 'all_sessions_herbier_classification.csv')
     
     merged_df.to_csv(merged_csv_path, index=False, header=True)
     
@@ -269,68 +272,75 @@ def restructure_sessions(sessions, session_index, dest_path, class_path, annot_p
     # Output:
         - sessions folders "Zenodo ready"
     '''
-    temp_path = output_txt_path[:-4] + sessions[0].split('/')[-1] + output_txt_path[-4:]
-    file = open(temp_path, "a+")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    file.write("Jacques classification started on %s \r\n" %device)
-    file.close()
+#     temp_path = output_txt_path[:-4] + sessions[0].split('/')[-1] + output_txt_path[-4:]
+#     file = open(temp_path, "a+")
+#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#     file.write("Jacques classification started on %s \r\n" %device)
+#     file.close()
     
-    # classification
-    results_of_all_sessions = classify_sessions(sessions, session_index)
+#     # classification
+#     results_of_all_sessions = classify_sessions(sessions, session_index)
     
     list_of_sessions = get_sessions_list(sessions, session_index)
     
     # operations on each session
     for session in list_of_sessions: 
         # export results to csv file
-        model = jacques_ckpt_path.split('/')[-1]
+#         model = jacques_ckpt_path.split('/')[-1]
         session_name = session.split('/')[-1]
         # adding session name, jacques version and classification model version to csv filename
-        suffix = f"{session_name}_jacques-v0.1.0_model-{model.split('.')[0]}"
-        class_path = os.path.join(class_path, session_name+'/LABEL/classification_.csv')
-        class_path = class_path[:-4] + suffix + class_path[-4:]
-        results_of_all_sessions.to_csv(class_path, index = False, header = True)
-        print(f'\nClassification informations written at {class_path}\n')
+#         suffix = f"{session_name}_jacques-v0.1.0_model-{model.split('.')[0]}"
+#         class_path = os.path.join(class_path, session_name+'/LABEL/classification_.csv')
+#         class_path = class_path[:-4] + suffix + class_path[-4:]
+#         results_of_all_sessions.to_csv(class_path, index = False, header = True)
+#         print(f'\nClassification informations written at {class_path}\n')
         
         # move useless images
-        dest_path = os.path.join(dest_path, session_name)
-        move_out_images(class_path, dest_path, who_moves='useless')
+#         dest_path = os.path.join(dest_path, session_name)
+#         move_out_images(class_path, dest_path, who_moves='useless')
         
-        df = pd.DataFrame(columns=['Image_path',"Acropore_branched", "Acropore_digitised", "Acropore_tabular", "Algae_assembly", 
-                   "Algae_limestone", "Algae_sodding", "Dead_coral", "Fish", "Human_object",
-                   "Living_coral", "Millepore", "No_acropore_encrusting", "No_acropore_massive",
-                  "No_acropore_sub_massive",  "Rock", "Sand",
-                   "Scrap", "Sea_cucumber", "Syringodium_isoetifolium",
-                   "Thalassodendron_ciliatum",  "Useless"])
+#         df = pd.DataFrame(columns=['Image_path',"Acropore_branched", "Acropore_digitised", "Acropore_tabular", "Algae_assembly", 
+#                    "Algae_limestone", "Algae_sodding", "Dead_coral", "Fish", "Human_object",
+#                    "Living_coral", "Millepore", "No_acropore_encrusting", "No_acropore_massive",
+#                   "No_acropore_sub_massive",  "Rock", "Sand",
+#                    "Scrap", "Sea_cucumber", "Syringodium_isoetifolium",
+#                    "Thalassodendron_ciliatum",  "Useless"])
         
         path =f'{session}/DCIM/'
         
         # delete BEFORE and AFTER folders if they exists
         #delete_folders(path)
         
-        output_txt_path = output_txt_path[:-4] + '_' + session_name + output_txt_path[-4:]
+#         output_txt_path = output_txt_path[:-4] + '_' + session_name + output_txt_path[-4:]
         final_csv_path = final_csv_path[:-4] + session_name + final_csv_path[-4:]
+        annot_path = annot_path[:-4] + session_name + annot_path[-4:]
         
         # adding multilabel annotations
         list_of_dir = get_subfolders(path)
+        list_of_df = []
         for directory in list_of_dir:
-            print(f"\nMultilabel annotations of images located in {directory}...")
+#             print(f"\nMultilabel annotations of images located in {directory}...")
+            print(f"\nHerbier classification of images located in {directory}...")
             images_path = os.path.join(session, directory)
-            df = write_csv(df, images_path, multilabel_ckpt_path, output_txt_path)
-        
-        annot_path = annot_path[:-4] + session_name + annot_path[-4:]
+#             df = write_csv(df, images_path, multilabel_ckpt_path, output_txt_path)
+            df = herbier_model(images_path, annot_path)
+            list_of_df.append(df)
+            
+        df = pd.concat(list_of_df, ignore_index=True)
         df.to_csv(annot_path, index = False, header = True)
-        print(f'\nAnnotations CSV of {session} successfully created at {annot_path}\n')
+#         print(f'\nAnnotations CSV of {session} successfully created at {annot_path}\n')
+        print(f'\nHerbier classification CSV of {session} successfully created at {annot_path}\n')
         
         # join GPS metadata to annotation file
         gps_info_csv_path = f'{session}/GPS/photos_location_{session_name}.csv'
         merged_csv_path = merged_csv_path[:-4] + session_name + merged_csv_path[-4:]
         join_GPS_metadata(annot_path, gps_info_csv_path, merged_csv_path)
-        print(f'Merged GPS metadata with multilabel annotations at {merged_csv_path}\n')
+#         print(f'Merged GPS metadata with multilabel annotations at {merged_csv_path}\n')
+        print(f'Merged GPS metadata with herbier classification at {merged_csv_path}\n')
         
         # apply thresholds
-        apply_thresholds(merged_csv_path, thresholds_csv_path, final_csv_path)
-        print(f'Applied thresholds to {merged_csv_path}.\nFinal CSV created at {final_csv_path}\n')
+#         apply_thresholds(merged_csv_path, thresholds_csv_path, final_csv_path)
+#         print(f'Applied thresholds to {merged_csv_path}.\nFinal CSV created at {final_csv_path}\n')
         
         # filtering out useless images
         #filter_useless_images(class_path, final_csv_path)
@@ -351,14 +361,14 @@ def main():
     session_index = args.session_index - 1
     print(f"In main, session_index = {session_index}")
     
-    sessions = '/home3/datawork/aboyer/mauritiusSessions/'
-    dest_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/useless_images/'
-    class_path = '/home3/datawork/aboyer/mauritiusSessions/'
-    annot_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/results_csv/annotations_.csv'
-    output_txt_path = f'/home3/datawork/aboyer/mauritiusSessionsOutput/results_txt/output_{start_str}.txt'
-    merged_csv_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/results_csv/merged_.csv'
-    thresholds_csv_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/multilabel_annotation_thresholds.csv'
-    final_csv_path = '/home3/datawork/aboyer/mauritiusSessionsOutput/results_csv/final_.csv'
+    sessions = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_unzipped/'
+    dest_path = ''
+    class_path = ''
+    annot_path = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/results_csv/herbier_classification/herbier_classification_.csv'
+    output_txt_path = ''
+    merged_csv_path = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/results_csv/herbier_classification/merged_herbier_.csv'
+    thresholds_csv_path = ''
+    final_csv_path = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/results_csv/herbier_classification/final_herbier_.csv'
 
     #sessions = ['sessions/session_2017_11_18_paddle_Prairie']
     #dest_path = ''
@@ -369,7 +379,7 @@ def main():
     #thresholds_csv_path = 'multilabel_annotation_thresholds.csv'
     #final_csv_path = 'results_csv/final_.csv'
     
-    if session_index < 21:
+    if session_index < 84:
         restructure_sessions(sessions, session_index, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path)
         execution_time = "{:.2f}".format(time.time() - start_time)
         print("\n========================================================")
