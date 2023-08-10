@@ -1,9 +1,10 @@
- -q omp
+#/bin/bash
+#PBS -q omp
 #PBS -l select=1:ncpus=2:mem=3g
 #PBS -l walltime=00:45:00
-#PBS -J 1-42
+#PBS -J 1-84
 #PBS -m n
-#PBS -N zipSessionsFolders
+#PBS -N unzipSessionsFolders
 #PBS -S /bin/bash
 
 signal_handler() {
