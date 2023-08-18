@@ -12,12 +12,13 @@ class SavePredictionsDf():
         self.dest_path = dest_path
         self.csv_name = csv_name
 
-    def initialize_df(self):
-        empty_df = pd.DataFrame(columns = ['dir', 'image', 'prob', 'class'])
+    def initialize_df(self, labels):
+        empty_df = pd.DataFrame(columns = ['dir', 'image'] + labels)
         return empty_df
 
-    def append_df_rows(self, df, file, prediction, label):
-        row = [self.files_dir, file, prediction, label]
+    def append_df_rows(self, df, file, prediction):
+        rounded_prediction = np.round(prediction, 3)
+        row = np.concatenate(([self.files_dir, file], rounded_prediction))
         df_length = len(df)
         df.loc[df_length] = row
         return df

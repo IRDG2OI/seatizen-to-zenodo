@@ -19,7 +19,18 @@ from inference.save_predictions import SavePredictionsDf, display_predictions
 from torch.multiprocessing import Pool, Process, set_start_method
 from dataloading.custom_datasets import UnlabeledDataset
 
-def herbier_model(useful_path, output_path):
+def create_head(num_features , number_classes ,dropout_prob=0.5 ,activation_func =nn.ReLU):
+    features_lst = [num_features , num_features//2 , num_features//4]
+    layers = []
+    for in_f ,out_f in zip(features_lst[:-1] , features_lst[1:]):
+        layers.append(nn.Linear(in_f , out_f))
+        layers.append(activation_func())
+        layers.append(nn.BatchNorm1d(out_f))
+        if dropout_prob !=0 : layers.append(nn.Dropout(dropout_prob))
+    layers.append(nn.Linear(features_lst[-1] , number_classes))
+    return nn.Sequential(*layers)
+
+def annotation_model(useful_path, output_path, ckpt_path, threshold_labels):
     
     try:
      set_start_method('spawn')
@@ -27,25 +38,28 @@ def herbier_model(useful_path, output_path):
         pass
 
     os.environ['MKL_THREADING_LAYER'] = 'GNU'
-    
-################ VARIABLES ###########################
-#     useful_path = '/home/datawork-iot-nos/Seatizen/data/herbiers_leanne/session_2023_06_01_hermitage_plancha_body_v1A_00/useful'
-#     output_path = '/home/datawork-iot-nos/Seatizen/data/herbiers_leanne/session_2023_06_01_hermitage_plancha_body_v1A_00/grasskelly'
-#     herbier_path = '/home/datawork-iot-nos/Seatizen/data/herbiers_leanne/session_2023_06_01_hermitage_plancha_body_v1A_00/herbier'
-#     not_herbier_path = '/home/datawork-iot-nos/Seatizen/data/herbiers_leanne/session_2023_06_01_hermitage_plancha_body_v1A_00/not_herbier'
 
 
 ################ BUILD MODEL #########################
     backbone = models.resnet50(weights='ResNet50_Weights.DEFAULT')
-    headnet = HeadNet(bodynet_features_out = backbone.fc.in_features,
-                                       head_aggregation_function = neural_network_settings['head_aggregation'],
-                                       head_hidden_layers_activation_function = neural_network_settings['head_hidden_layers_activation'],
-                                       head_normalization_function = neural_network_settings['head_normalization'],
-                                       head_proba_dropout = neural_network_settings['proba_dropout'],
-                                       nb_hidden_head_layers = neural_network_settings['nb_hidden_head_layers'], 
-                                       nb_classes = len(neural_network_settings['class_labels']))
-    model = build_model(backbone, headnet)
-    ckpt_path='/home/datawork-iot-nos/Seatizen/models/stage_leanne/herbier_classification/lightning_logs/version_17/checkpoints/epoch=8-step=620.ckpt'
+    classLabels = list(threshold_labels.keys())
+    
+    if len(classLabels) == 1: # herbier classification
+        headnet = HeadNet(bodynet_features_out = backbone.fc.in_features,
+                                           head_aggregation_function = neural_network_settings['head_aggregation'],
+                                           head_hidden_layers_activation_function = neural_network_settings['head_hidden_layers_activation'],
+                                           head_normalization_function = neural_network_settings['head_normalization'],
+                                           head_proba_dropout = neural_network_settings['proba_dropout'],
+                                           nb_hidden_head_layers = neural_network_settings['nb_hidden_head_layers'], 
+                                           nb_classes = len(neural_network_settings['class_labels']))
+        model = build_model(backbone, headnet)
+    #     ckpt_path='/home/datawork-iot-nos/Seatizen/models/stage_leanne/herbier_classification/lightning_logs/version_17/checkpoints/epoch=8-step=620.ckpt'
+    elif len(classLabels) > 1: # multi-label annotation
+        model = models.resnet50()
+        num_features = backbone.fc.in_features
+        top_head = create_head(num_features , len(classLabels))
+        model.fc = top_head
+        
     predictor = UselessImagesPredictor(model, ckpt_path)
 
 ################## LOAD IMAGES ########################
@@ -62,30 +76,13 @@ def herbier_model(useful_path, output_path):
     csv = 'results_herbier_classification'
     predict_dataloader = DataLoader(unlabeled_set, batch_size=1, shuffle = False, num_workers = 8)
     savepredictionsdf = SavePredictionsDf(files_dir = useful_path, dest_path = output_path, csv_name = csv)
-    df = savepredictionsdf.initialize_df()
+    df = savepredictionsdf.initialize_df(classLabels)
 
 ################### PREDICT ###########################
     for batch in predict_dataloader:
         image_name, image = batch
-        prediction, label = predictor.predict(image)
-        df = savepredictionsdf.append_df_rows(df, image_name[0], prediction, label)
+        image_path = os.path.join(useful_path, image_name[0])
+        prediction, results = predictor.predict(image_path, image, threshold_labels)
+        df = savepredictionsdf.append_df_rows(df, image_name[0], results)
 
-################### SAVE PREDICTION ###################
-#     df.to_csv(os.path.join(output_path, csv))
-#     df.to_csv(output_path)
     return df
-    
-################### SELECT USEFUL FRAMES ##############
-#     directory = df['dir'][1]
-#     image_list = df['image'].tolist()
-#     class_list = df['class'].tolist()
-#     for i in range(len(image_list)):
-#         if class_list[i]=='herbier':
-#             full_file_name = os.path.join(directory,image_list[i])
-#             shutil.copy(full_file_name,herbier_path)
-#         if class_list[i]=='not_herbier':
-#             full_file_name = os.path.join(directory,image_list[i])
-#             shutil.copy(full_file_name,not_herbier_path)
-
-# if __name__ == "__main__":
-#     main()

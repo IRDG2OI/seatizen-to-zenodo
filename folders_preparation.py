@@ -18,15 +18,8 @@ import time
 from datetime import datetime
 import glob
 from tqdm import tqdm
-from predict import herbier_model
-
-# checkpoint path
-# jacques_ckpt_path = 'model_checkpoint_v0.ckpt'
-# jacques_ckpt_path = 'epoch=8-step=1412.ckpt'
-#jacques_ckpt_path = 'epoch=7-step=2056.ckpt'
-jacques_ckpt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/models/epoch=7-step=2056.ckpt'
-#multilabel_ckpt_path = 'multilabel_with_sable.pth'
-multilabel_ckpt_path = '/home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/models/multilabel_with_sable.pth'
+from predict import annotation_model
+import json
 
 # get folder list that contains images (['DCIM/100GOPRO/', 'DCIM/101GOPRO/'])
 def get_subfolders(folder_path):
@@ -198,7 +191,7 @@ def filter_useless_images(classification_csv, final_csv_path):
 # merge all final csv files starting with 'final' located at csv_path in one csv file
 def merge_all_final_csv(csv_path):
     directory_path = os.path.dirname(csv_path)
-    wildcard_pattern = os.path.join(directory_path, 'merged_*.csv')
+    wildcard_pattern = os.path.join(directory_path, 'final_*.csv')
     file_list = glob.glob(wildcard_pattern)
     
     dfs = []
@@ -209,15 +202,14 @@ def merge_all_final_csv(csv_path):
     
     merged_df = pd.concat(dfs, ignore_index=True)
     
-#     merged_df.sort_values(by='Image_path', inplace=True)
-    merged_df.sort_values(by='dir', inplace=True)
+    merged_df.sort_values(by='image', inplace=True)
     
-    merged_csv_path = os.path.join(directory_path, 'all_sessions_herbier_classification.csv')
+    merged_csv_path = os.path.join(directory_path, 'all_sessions_annotation.csv')
     
     merged_df.to_csv(merged_csv_path, index=False, header=True)
     
 
-def classify_sessions(sessions, session_index):
+def classify_sessions(sessions, session_index, jacques_model_path):
     '''
     Function that uses jacques predicator classify_useless_images function to classify given sessions images.
     # Input:
@@ -225,6 +217,10 @@ def classify_sessions(sessions, session_index):
             ## can be a string that refer to a single directory that contains 
             every sessions (ex: 'sessions/')
             ## can be a list of the desired sessions (ex: ['sessions/session_2017_11_05_kite_Le_Morne'])
+        - session_index:
+            ## index of the session to process
+        - jacques_model_path:
+            ## path to jacques model
     # Output:
         - a dataframe that contains the classification result for the selected sessions images
         
@@ -241,116 +237,88 @@ def classify_sessions(sessions, session_index):
         for directory in list_of_dir:
             print('\n' + directory)
             try:
-                results = predictor.classify_useless_images(folder_path=os.path.join(session, directory), ckpt_path=jacques_ckpt_path)
+                results = predictor.classify_useless_images(folder_path=os.path.join(session, directory), ckpt_path=jacques_model_path)
                 results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
             except Exception as e:
                 print(f"\n[ERROR] Classification error in the directory {directory}: {e}")
     return results_of_all_sessions
 
-def restructure_sessions(sessions, session_index, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path):
+def restructure_sessions(sessions, session_index, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels):
     '''
     Function to restructure sessions folders to be "Zenodo ready"
     # Input:
         - sessions:
             ## the list of sessions:
-                either a single directory that contains every sessions. (ex: 'sessions/')
-                or a list of sessions path (ex: ['sessions/session_2017_11_19_paddle_Black_Rocks'])
+                either a single directory that contains every sessions. (ex: '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_unzipped/')
+                or a list of sessions path (ex: ['/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_unzipped/session_2017_11_19_paddle_Black_Rocks'])
         - dest_path:
-            ## destination path where useless images will me moved. (ex: 'useless/session_2017_11_19_paddle_Black_Rocks_useless_images/')
-        - class_path:
-            ## path where classification result csv will be written. (ex: 'results_csv/classifications_results.csv')
+            ## destination path where useless images will me moved. (ex: '/home3/datawork/aboyer/mauritiusSessionsOutput/useless_images/')
         - annot_path:
-            ## path where multilabel annotations csv will be created. (ex: 'results_csv/annotations_.csv')
-        - output_txt_path:
-            ## path where a txt file will be created to monitor multilabel annotations progression. (ex: 'results_txt/output_.txt')
-        - merged_csv_path:
-            ## path where annotation csv will be merged with gps infos to create a new csv (ex: 'results_csv/merged_.csv')
-        - thresholds_csv_path:
-            ## path where the csv with thresholds values is located
-        - final_csv_path:
-            ## path of the final csv
+            ## path where multilabel annotations csv will be created. (ex: '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/results_csv/herbier_classification/herbier_classification_.csv')
+        - jacques_model_path:
+            ## path to jacques model. (ex: '/home/datawork-iot-nos/Seatizen/models/useless_classification/version_17/checkpoints/epoch=7-step=2056.ckpt')
+        - annotation_model_path:
+            ## path to annotation model. (ex: '/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/models/multilabel_with_sable.pth')
+        - thresholds_labels:
+            ## a dictionnary that contains labels names and their associated thresholds
     # Output:
         - sessions folders "Zenodo ready"
     '''
-#     temp_path = output_txt_path[:-4] + sessions[0].split('/')[-1] + output_txt_path[-4:]
-#     file = open(temp_path, "a+")
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#     file.write("Jacques classification started on %s \r\n" %device)
-#     file.close()
-    
-#     # classification
-#     results_of_all_sessions = classify_sessions(sessions, session_index)
+    # classification
+    results_of_all_sessions = classify_sessions(sessions, session_index, jacques_model_path)
     
     list_of_sessions = get_sessions_list(sessions, session_index)
     
     # operations on each session
     for session in list_of_sessions: 
         # export results to csv file
-#         model = jacques_ckpt_path.split('/')[-1]
+        model = jacques_model_path.split('/')[-1]
         session_name = session.split('/')[-1]
         # adding session name, jacques version and classification model version to csv filename
-#         suffix = f"{session_name}_jacques-v0.1.0_model-{model.split('.')[0]}"
-#         class_path = os.path.join(class_path, session_name+'/LABEL/classification_.csv')
-#         class_path = class_path[:-4] + suffix + class_path[-4:]
-#         results_of_all_sessions.to_csv(class_path, index = False, header = True)
-#         print(f'\nClassification informations written at {class_path}\n')
+        suffix = f"{session_name}_jacques-v0.1.0_model-{model.split('.')[0]}"
+        class_path = os.path.join(session, 'LABEL/classification_.csv')
+        class_path = class_path[:-4] + suffix + class_path[-4:]
+        results_of_all_sessions.to_csv(class_path, index = False, header = True)
+        print(f'\nClassification informations written at {class_path}\n')
         
         # move useless images
-#         dest_path = os.path.join(dest_path, session_name)
-#         move_out_images(class_path, dest_path, who_moves='useless')
-        
-#         df = pd.DataFrame(columns=['Image_path',"Acropore_branched", "Acropore_digitised", "Acropore_tabular", "Algae_assembly", 
-#                    "Algae_limestone", "Algae_sodding", "Dead_coral", "Fish", "Human_object",
-#                    "Living_coral", "Millepore", "No_acropore_encrusting", "No_acropore_massive",
-#                   "No_acropore_sub_massive",  "Rock", "Sand",
-#                    "Scrap", "Sea_cucumber", "Syringodium_isoetifolium",
-#                    "Thalassodendron_ciliatum",  "Useless"])
+        dest_path = os.path.join(dest_path, session_name)
+        move_out_images(class_path, dest_path, who_moves='useless')
         
         path =f'{session}/DCIM/'
         
         # delete BEFORE and AFTER folders if they exists
         #delete_folders(path)
-        
-#         output_txt_path = output_txt_path[:-4] + '_' + session_name + output_txt_path[-4:]
-        final_csv_path = final_csv_path[:-4] + session_name + final_csv_path[-4:]
+           
         annot_path = annot_path[:-4] + session_name + annot_path[-4:]
+        final_csv_path = os.path.join(os.path.dirname(annot_path), "final_annotation_.csv")
+        final_csv_path = final_csv_path[:-4] + session_name + final_csv_path[-4:]
         
         # adding multilabel annotations
         list_of_dir = get_subfolders(path)
         list_of_df = []
         for directory in list_of_dir:
-#             print(f"\nMultilabel annotations of images located in {directory}...")
-            print(f"\nHerbier classification of images located in {directory}...")
+            print(f"\nAnnotations of images located in {directory}...")
             images_path = os.path.join(session, directory)
-#             df = write_csv(df, images_path, multilabel_ckpt_path, output_txt_path)
-            df = herbier_model(images_path, annot_path)
+            df = annotation_model(images_path, annot_path, annotation_model_path, threshold_labels)
             list_of_df.append(df)
             
         df = pd.concat(list_of_df, ignore_index=True)
+        df.sort_values(by="image", inplace=True)
         df.to_csv(annot_path, index = False, header = True)
-#         print(f'\nAnnotations CSV of {session} successfully created at {annot_path}\n')
-        print(f'\nHerbier classification CSV of {session} successfully created at {annot_path}\n')
+        print(f'\nAnnotations CSV of {session} successfully created at {annot_path}\n')
         
         # join GPS metadata to annotation file
         gps_info_csv_path = f'{session}/GPS/photos_location_{session_name}.csv'
-        merged_csv_path = merged_csv_path[:-4] + session_name + merged_csv_path[-4:]
-        join_GPS_metadata(annot_path, gps_info_csv_path, merged_csv_path)
-#         print(f'Merged GPS metadata with multilabel annotations at {merged_csv_path}\n')
-        print(f'Merged GPS metadata with herbier classification at {merged_csv_path}\n')
-        
-        # apply thresholds
-#         apply_thresholds(merged_csv_path, thresholds_csv_path, final_csv_path)
-#         print(f'Applied thresholds to {merged_csv_path}.\nFinal CSV created at {final_csv_path}\n')
-        
-        # filtering out useless images
-        #filter_useless_images(class_path, final_csv_path)
-        #print(f'Filtered out useless images from {final_csv_path}\n')
+        join_GPS_metadata(annot_path, gps_info_csv_path, final_csv_path)
+        print(f'Merged GPS metadata with annotation results at {final_csv_path}\n')
             
         
 def main():
     start_time = time.time()
     print(f"Start time: {datetime.now()}")
     start_str = datetime.strftime(datetime.now(), '%Y-%m-%d_%H:%M:%S')
+    # getting session index from script args
     parser = argparse.ArgumentParser()
     parser.add_argument("--session-index",
                         action="store",
@@ -361,26 +329,25 @@ def main():
     session_index = args.session_index - 1
     print(f"In main, session_index = {session_index}")
     
-    sessions = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_unzipped/'
-    dest_path = ''
-    class_path = ''
-    annot_path = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/results_csv/herbier_classification/herbier_classification_.csv'
-    output_txt_path = ''
-    merged_csv_path = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/results_csv/herbier_classification/merged_herbier_.csv'
-    thresholds_csv_path = ''
-    final_csv_path = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/results_csv/herbier_classification/final_herbier_.csv'
-
-    #sessions = ['sessions/session_2017_11_18_paddle_Prairie']
-    #dest_path = ''
-    #class_path = 'results_csv/session_2017_11_18_paddle_Prairie.csv'
-    #annot_path = 'results_csv/annotations_.csv'
-    #output_txt_path = 'results_txt/output_.txt'
-    #merged_csv_path = 'results_csv/merged_.csv'
-    #thresholds_csv_path = 'multilabel_annotation_thresholds.csv'
-    #final_csv_path = 'results_csv/final_.csv'
+    # read the config.json file
+    with open('config.json') as json_file:
+        config = json.load(json_file)
     
-    if session_index < 84:
-        restructure_sessions(sessions, session_index, dest_path, class_path, annot_path, output_txt_path, merged_csv_path, thresholds_csv_path, final_csv_path)
+    # getting all variables from config.json file
+    ## models
+    jacques_model_path = config["jacques_model_path"]
+    annotation_model_path = config["annotation_model_path"]
+    ## paths
+    sessions = config["sessions_path"]
+    dest_path = config["useless_images_path"]
+    annot_path = config["annotation_csv_path"]
+    ## number of sessions to process
+    nb_sessions = config["nb_sessions"]
+    ## threshold labels dictionnary
+    threshold_labels = config["threshold_labels"]
+    
+    if session_index < nb_sessions:
+        restructure_sessions(sessions, session_index, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels)
         execution_time = "{:.2f}".format(time.time() - start_time)
         print("\n========================================================")
         print(f"\nEnd time: {datetime.now()}")
