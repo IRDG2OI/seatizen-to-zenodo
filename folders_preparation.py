@@ -59,9 +59,13 @@ def get_sessions_list(sessions, session_index):
         list_of_sessions = list_directories(directory_of_sessions)
         list_of_sessions = [os.path.join(directory_of_sessions, session) for session in list_of_sessions]
         list_of_sessions.sort()
-        list_of_sessions = [list_of_sessions[session_index]]
+        if session_index != -1:
+            list_of_sessions = [list_of_sessions[session_index]]
     elif(isinstance(sessions, list)): # if it's a list, sessions are written by hand
-        list_of_sessions = [sessions[session_index]]
+        if session_index != -1:
+            list_of_sessions = [sessions[session_index]]
+        else:
+            list_of_sessions = sessions
     
     return list_of_sessions
 
@@ -323,11 +327,9 @@ def main():
     parser.add_argument("--session-index",
                         action="store",
                         type=int,
-                        default=1,
-                        help="Index of the session that is being processed. Default: 1")
+                        default=argparse.SUPPRESS,
+                        help="Index of the session that is being processed.")
     args = parser.parse_args()
-    session_index = args.session_index - 1
-    print(f"In main, session_index = {session_index}")
     
     # read the config.json file
     with open('config.json') as json_file:
@@ -346,7 +348,17 @@ def main():
     ## threshold labels dictionnary
     threshold_labels = config["threshold_labels"]
     
-    if session_index < nb_sessions:
+    if hasattr(args, "session_index"):
+        session_index = args.session_index - 1
+        print(f"In main, session_index = {session_index}")
+        if session_index < nb_sessions:
+            restructure_sessions(sessions, session_index, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels)
+            execution_time = "{:.2f}".format(time.time() - start_time)
+            print("\n========================================================")
+            print(f"\nEnd time: {datetime.now()}")
+            print(f"Total execution time: {execution_time}s")
+    else:
+        session_index = -1
         restructure_sessions(sessions, session_index, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels)
         execution_time = "{:.2f}".format(time.time() - start_time)
         print("\n========================================================")
