@@ -59,6 +59,12 @@ pip install fiftyone
 ```
 python folders_preparation.py
 ```
+This will process every sessions of the folder indicated in the config.json file. <br/>
+If you want to process a specific session in the folder, you can do so by adding the argument **--session-index** to the previous command:
+```
+python folders_preparation.py --session-index 1
+``` 
+This will process the first session of the folder.
 
 #### Datarmor
 1. Edit the **config.json** file with your datarmor paths as described below.
