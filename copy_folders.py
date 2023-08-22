@@ -27,13 +27,15 @@ def main():
     session_index = args.session_index - 1
     
     #source_folder = '/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated'
-    source_folder = '/home3/scratch/aboyer/zipSessions'
-    #sessions = list_directories(source_folder)
-    sessions = [file for file in os.listdir(source_folder) if file.endswith('.zip')]
+    # source_folder = '/home3/scratch/aboyer/zipSessions'
+    source_folder = '/home3/datawork/aboyer/mauritiusSessionsOutput/useless_images'
+    sessions = list_directories(source_folder)
+    # sessions = [file for file in os.listdir(source_folder) if file.endswith('.zip')]
     sessions.sort()
     session = sessions[session_index]
     #destination_folder = os.path.join('/home3/datawork/aboyer/mauritiusSessions', session)
-    destination_folder = os.path.join('/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/zipped_sessions', session)
+    # destination_folder = os.path.join('/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/zipped_sessions', session)
+    destination_folder = os.path.join('/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/useless_images', session)
     session_path = os.path.join(source_folder, session)
 
     if session_index < 84:
@@ -41,8 +43,8 @@ def main():
             print(f"{session} already copied.\n")
             print("========================================================\n")
         else:
-            #shutil.copytree(session_path, destination_folder)
-            shutil.copy(session_path, destination_folder)
+            shutil.copytree(session_path, destination_folder)
+            # shutil.copy(session_path, destination_folder)
             execution_time_seconds = time.time() - start_time
             execution_time_minutes = "{:.2f}".format(execution_time_seconds / 60)
             print(f"\n{session} copy in {destination_folder} successfull.")

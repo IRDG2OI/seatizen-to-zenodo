@@ -11,7 +11,7 @@ from jacques.inference import output
 import os
 import pandas as pd
 import shutil
-from multilabel_annotation import write_csv
+# from multilabel_annotation import write_csv
 import torch
 import argparse
 import time
