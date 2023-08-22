@@ -51,7 +51,11 @@ pip install fiftyone
 #### Datarmor
 1. Download the git repository as a ZIP and extract it in a folder of your datahome.
 2. Modify lines 15 and 21 of folders_preparation.pbs with your installation path.
-
+3. Download resnet model
+```
+wget https://download.pytorch.org/models/resnet50-11ad3fa6.pth
+mv resnet50-11ad3fa6.pth ~/.cache/torch/hub/checkpoints/resnet50-11ad3fa6.pth
+```
 ### Usage
 #### Local
 1. Edit the **config.json** file with your local paths as described below.
