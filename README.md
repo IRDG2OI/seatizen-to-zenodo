@@ -76,7 +76,12 @@ This will process the first session of the folder.
 ```
 #PBS -J 5-70
 ```
-This means that you want to process the sessions 5 to 70 in the list of sessions you specified.
+This means that you want to process the sessions 5 to 70 in the list of sessions you specified. <br/>
+If you want to process only one session, you can do so by removing the **#PBS -J 5-70** line and replace **$PBS_ARRAY_INDEX** on line 21 with the index of the session you want to process:
+```
+python /path/to/folders_preparation.py --session-index 1
+```
+This will only process the first session of the folder.
 
 3. Start the **folders_preparation.pbs** script:
 ```
