@@ -110,8 +110,7 @@ It's the list of sessions, it can be either the path to a single directory that 
 - **zipped_sessions_path** <br/>
 It's the path to the folder where you want to create the zipped version of each session: <br/>
 (ex:***'/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_zipped/'***) <br/>
-If you don't want to zip the sessions, do not fill in a path, leave the quotes empty: <br/>
-(***''***)
+If you don't want to zip the sessions, do not fill in a path, leave the quotes empty.
 
 - **useless_images_path** <br/>
 It's the folder path where useless images will me moved. <br/>
