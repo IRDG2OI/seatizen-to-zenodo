@@ -16,6 +16,8 @@ The execution of the **folders_preparation.py** script will:
 1. Apply the jacques classification model on each session, moving out every useless images.
 2. Export the jacques classification results to a csv file.
 3. Create an annotations csv file from the given model, labels and thresholds.
+4. (Optional) Create zipped versions of each session folder.
+5. Create a .txt file with jacques classification statistics (total images, number of useful/useless images, percentage of useless images in relation of total images).
 
 ### Installation
 #### Local
@@ -51,7 +53,7 @@ pip install fiftyone
 #### Datarmor
 1. Download the git repository as a ZIP and extract it in a folder of your datahome.
 2. Modify lines 15 and 21 of folders_preparation.pbs with your installation path.
-3. Download resnet model
+3. Download the resnet model
 ```
 wget https://download.pytorch.org/models/resnet50-11ad3fa6.pth
 mv resnet50-11ad3fa6.pth ~/.cache/torch/hub/checkpoints/resnet50-11ad3fa6.pth
@@ -102,8 +104,14 @@ It's the path to the annotation model. <br/>
 
 - **sessions_path** <br/>
 It's the list of sessions, it can be either the path to a single directory that contains every sessions: <br/>
-***'/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions/'*** or a list of sessions paths: <br/>
-***['/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions/session_2017_11_19_paddle_Black_Rocks']***
+(ex: ***'/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions/'*** or a list of sessions paths: <br/>
+***['/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions/session_2017_11_19_paddle_Black_Rocks']***)
+
+- **zipped_sessions_path** <br/>
+It's the path to the folder where you want to create the zipped version of each session: <br/>
+(ex:***'/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_zipped/'***) <br/>
+If you don't want to zip the sessions, do not fill in a path, leave the quotes empty: <br/>
+(***''***)
 
 - **useless_images_path** <br/>
 It's the folder path where useless images will me moved. <br/>
@@ -111,9 +119,6 @@ It's the folder path where useless images will me moved. <br/>
 
 - **annotation_csv_path** <br/>
 It's the folder path where annotations csv will be created.<br/>(ex: ***'/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/test/output/results_csv/multilabel_annotation_.csv'***)
-
-- **nb_sessions** <br/>
-Max number of sessions to process.
 
 - **threshold_labels** <br/>
 It's a dictionnary where the keys are the annotation model labels and the values are their associated thresholds. <br/>

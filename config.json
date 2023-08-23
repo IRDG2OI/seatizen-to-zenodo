@@ -3,10 +3,9 @@
     "annotation_model_path": "/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/models/multilabel_with_sable.pth",
 
     "sessions_path": "/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/test/sessions/",
+    "zipped_sessions_path": "",
     "useless_images_path": "/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/test/output/useless_images/",
     "annotation_csv_path": "/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/test/output/results_csv/multilabel_annotation_.csv",
-
-    "nb_sessions": 84,
 
     "threshold_labels": {
         "Acropore_branched": 0.56,
@@ -33,5 +32,3 @@
     }
 
 }
-
-

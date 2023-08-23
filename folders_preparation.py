@@ -7,19 +7,16 @@ Created on Mon Jul 10 15:04:46 2023
 """
 
 from jacques.inference import predictor
-from jacques.inference import output
 import os
 import pandas as pd
 import shutil
-# from multilabel_annotation import write_csv
-import torch
 import argparse
 import time
 from datetime import datetime
 import glob
-from tqdm import tqdm
 from predict import annotation_model
 import json
+import zipfile
 
 # get folder list that contains images (['DCIM/100GOPRO/', 'DCIM/101GOPRO/'])
 def get_subfolders(folder_path):
@@ -211,6 +208,50 @@ def merge_all_final_csv(csv_path):
     merged_csv_path = os.path.join(directory_path, 'all_sessions_annotation.csv')
     
     merged_df.to_csv(merged_csv_path, index=False, header=True)
+
+def unzip(zip_file_index, source_folder, destination_folder):
+    zip_files = [file for file in os.listdir(source_folder) if file.endswith('.zip')]
+    zip_files.sort()
+    zip_file = zip_files[zip_file_index]
+    zip_file_path = os.path.join(source_folder, zip_file)
+    session_name = zip_file[:-4]
+    destination_folder = os.path.join(destination_folder, session_name)
+    os.makedirs(destination_folder, exist_ok=True)
+    
+    with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+        zip_ref.extractall(destination_folder)
+        
+def zip_folders(session, session_name, destination_folder):
+    zip_filename = session_name + ".zip"
+    zip_path = os.path.join(destination_folder, zip_filename)
+    
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Walk through the folder and add each file and subfolder to the ZIP file
+        for root, dirs, files in os.walk(session):
+            for file in files:
+                file_path = os.path.join(root, file)
+                # The second argument of 'zipf.write' is the relative path inside the ZIP
+                zipf.write(file_path, os.path.relpath(file_path, session))
+
+    print(f"{session_name} zipped in {destination_folder} successfully.\n")
+
+def create_sessions_stats(session, session_name):
+    input_file = os.path.join(session, f'LABEL/classification_{session_name}_jacques-v0.1.0_model-epoch=7-step=2056.csv')
+    output_file = os.path.join(session, f'METADATA/{session_name}_stats.txt')
+    
+    df = pd.read_csv(input_file)
+    total_images = len(df)
+    useful_images = len(df[df['class'] == 'useful'])
+    useless_images = len(df[df['class'] == 'useless'])
+    percentage_useless = (useless_images / total_images) * 100
+    
+    with open(output_file, 'w') as f:
+        f.write(f"Total images: {total_images}\n")
+        f.write(f"Useful images: {useful_images}\n")
+        f.write(f"Useless images: {useless_images}\n")
+        f.write(f"Percentage of useless images: {percentage_useless:.2f}%\n")
+    
+    print(f"{session_name} statistics written to {output_file}.")
     
 
 def classify_sessions(sessions, session_index, jacques_model_path):
@@ -247,7 +288,7 @@ def classify_sessions(sessions, session_index, jacques_model_path):
                 print(f"\n[ERROR] Classification error in the directory {directory}: {e}")
     return results_of_all_sessions
 
-def restructure_sessions(sessions, session_index, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels):
+def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels):
     '''
     Function to restructure sessions folders to be "Zenodo ready"
     # Input:
@@ -255,6 +296,8 @@ def restructure_sessions(sessions, session_index, dest_path, annot_path, jacques
             ## the list of sessions:
                 either a single directory that contains every sessions. (ex: '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_unzipped/')
                 or a list of sessions path (ex: ['/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_unzipped/session_2017_11_19_paddle_Black_Rocks'])
+        - zip_sessions:
+            ## either to zip the sessions or not
         - dest_path:
             ## destination path where useless images will me moved. (ex: '/home3/datawork/aboyer/mauritiusSessionsOutput/useless_images/')
         - annot_path:
@@ -314,14 +357,31 @@ def restructure_sessions(sessions, session_index, dest_path, annot_path, jacques
         
         # join GPS metadata to annotation file
         gps_info_csv_path = f'{session}/GPS/photos_location_{session_name}.csv'
-        join_GPS_metadata(annot_path, gps_info_csv_path, final_csv_path)
-        print(f'Merged GPS metadata with annotation results at {final_csv_path}\n')
+        if os.path.exists(gps_info_csv_path):
+            join_GPS_metadata(annot_path, gps_info_csv_path, final_csv_path)
+            print(f'Merged GPS metadata with annotation results at {final_csv_path}\n')
+        else:
+            print(f"[ERROR] {gps_info_csv_path} not found. Could not merge GPS metadata with annotation results.")
+
+        # zip session folder if true in config file
+        if len(zipped_sessions_path) != 0:
+            try:
+                print(f"Zipping {session_name}...")
+                zip_folders(session, session_name, zipped_sessions_path)
+            except Exception as e:
+                print(e)
+
+        # create a .txt file in the METADATA folder of each session. This file give statistics about the jacques classification result.
+        try:
+            print(f"Creation of {session_name} jacques stats file...")
+            create_sessions_stats(session, session_name)
+        except Exception as e:
+            print(e)
             
         
 def main():
     start_time = time.time()
     print(f"Start time: {datetime.now()}")
-    start_str = datetime.strftime(datetime.now(), '%Y-%m-%d_%H:%M:%S')
     # getting session index from script args
     parser = argparse.ArgumentParser()
     parser.add_argument("--session-index",
@@ -341,29 +401,28 @@ def main():
     annotation_model_path = config["annotation_model_path"]
     ## paths
     sessions = config["sessions_path"]
+    zipped_sessions_path = config["zipped_sessions_path"]
     dest_path = config["useless_images_path"]
     annot_path = config["annotation_csv_path"]
-    ## number of sessions to process
-    nb_sessions = config["nb_sessions"]
     ## threshold labels dictionnary
     threshold_labels = config["threshold_labels"]
     
     if hasattr(args, "session_index"):
         session_index = args.session_index - 1
-        print(f"In main, session_index = {session_index}")
-        if session_index < nb_sessions:
-            restructure_sessions(sessions, session_index, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels)
-            execution_time = "{:.2f}".format(time.time() - start_time)
-            print("\n========================================================")
-            print(f"\nEnd time: {datetime.now()}")
-            print(f"Total execution time: {execution_time}s")
-    else:
-        session_index = -1
-        restructure_sessions(sessions, session_index, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels)
-        execution_time = "{:.2f}".format(time.time() - start_time)
+        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels)
+        execution_time_seconds = time.time() - start_time
+        execution_time_minutes = "{:.2f}".format(execution_time_seconds / 60)
         print("\n========================================================")
         print(f"\nEnd time: {datetime.now()}")
-        print(f"Total execution time: {execution_time}s")
+        print(f"Total execution time: {execution_time_minutes} minutes")
+    else: # execution on all sessions in the folder
+        session_index = -1
+        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels)
+        execution_time_seconds = time.time() - start_time
+        execution_time_minutes = "{:.2f}".format(execution_time_seconds / 60)
+        print("\n========================================================")
+        print(f"\nEnd time: {datetime.now()}")
+        print(f"Total execution time: {execution_time_minutes} minutes")
 
 if __name__ == '__main__':
     main()
