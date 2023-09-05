@@ -17,6 +17,7 @@ import glob
 from predict import annotation_model
 import json
 import zipfile
+from PIL import UnidentifiedImageError
 
 # get folder list that contains images (['DCIM/100GOPRO/', 'DCIM/101GOPRO/'])
 def get_subfolders(folder_path):
@@ -203,7 +204,9 @@ def merge_all_final_csv(csv_path):
     
     merged_df = pd.concat(dfs, ignore_index=True)
     
-    merged_df.sort_values(by='image', inplace=True)
+    merged_df["sessions"] = merged_df["dir"].apply(lambda x: os.path.basename(os.path.dirname(os.path.dirname(x))))
+    merged_df.sort_values(by='sessions', inplace=True)
+    merged_df = merged_df.drop(columns='sessions')
     
     merged_csv_path = os.path.join(directory_path, 'all_sessions_annotation.csv')
     
@@ -235,8 +238,9 @@ def zip_folders(session, session_name, destination_folder):
 
     print(f"{session_name} zipped in {destination_folder} successfully.\n")
 
-def create_sessions_stats(session, session_name):
-    input_file = os.path.join(session, f'LABEL/classification_{session_name}_jacques-v0.1.0_model-epoch=7-step=2056.csv')
+def create_sessions_stats(session, session_name, jacques_model_path):
+    jacques_model = jacques_model_path.split("/")[-1]
+    input_file = os.path.join(session, f'LABEL/classification_{session_name}_jacques-v0.1.0_model-{jacques_model}.csv')
     output_file = os.path.join(session, f'METADATA/{session_name}_stats.txt')
     
     df = pd.read_csv(input_file)
@@ -281,11 +285,25 @@ def classify_sessions(sessions, session_index, jacques_model_path):
         list_of_dir = get_subfolders(f'{session}/DCIM/')
         for directory in list_of_dir:
             print('\n' + directory)
+            folder_path = os.path.join(session, directory)
+            file_list = os.listdir(folder_path)
+            for file_name in file_list:
+                if file_name.startswith('._'):
+                    file_path = os.path.join(folder_path, file_name)
+                    try:
+                        os.remove(file_path)
+                        print(f"\nRemoved unidentified image: {file_name}")
+                    except OSError as e:
+                        print(f"\nError removing image {file_name}: {e}")
+
             try:
-                results = predictor.classify_useless_images(folder_path=os.path.join(session, directory), ckpt_path=jacques_model_path)
+                results = predictor.classify_useless_images(folder_path=folder_path, ckpt_path=jacques_model_path)
                 results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
             except Exception as e:
-                print(f"\n[ERROR] Classification error in the directory {directory}: {e}")
+                print(f"\n[ERROR] Classification error in {directory}: {e}")
+                pass
+                    
+
     return results_of_all_sessions
 
 def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels):
@@ -335,7 +353,7 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
         path =f'{session}/DCIM/'
         
         # delete BEFORE and AFTER folders if they exists
-        #delete_folders(path)
+        delete_folders(path)
            
         annot_path = annot_path[:-4] + session_name + annot_path[-4:]
         final_csv_path = os.path.join(os.path.dirname(annot_path), "final_annotation_.csv")
@@ -374,7 +392,7 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
         # create a .txt file in the METADATA folder of each session. This file give statistics about the jacques classification result.
         try:
             print(f"Creation of {session_name} jacques stats file...")
-            create_sessions_stats(session, session_name)
+            create_sessions_stats(session, session_name, jacques_model_path)
         except Exception as e:
             print(e)
             
@@ -397,13 +415,13 @@ def main():
     
     # getting all variables from config.json file
     ## models
-    jacques_model_path = config["jacques_model_path"]
-    annotation_model_path = config["annotation_model_path"]
+    jacques_model_path = config["paths"]["jacques_model_path"]
+    annotation_model_path = config["paths"]["annotation_model_path"]
     ## paths
-    sessions = config["sessions_path"]
-    zipped_sessions_path = config["zipped_sessions_path"]
-    dest_path = config["useless_images_path"]
-    annot_path = config["annotation_csv_path"]
+    sessions = config["paths"]["sessions_path"]
+    zipped_sessions_path = config["paths"]["zipped_sessions_path"]
+    dest_path = config["paths"]["useless_images_path"]
+    annot_path = config["paths"]["annotation_csv_path"]
     ## threshold labels dictionnary
     threshold_labels = config["threshold_labels"]
     
