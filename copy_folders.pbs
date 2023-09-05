@@ -1,10 +1,10 @@
 #/bin/bash
 #PBS -q omp
 #PBS -l select=1:ncpus=2:mem=1g
-#PBS -l walltime=00:45:00
+#PBS -l walltime=01:00:00
 #PBS -J 1-84
 #PBS -m n
-#PBS -N copyUselessImgs
+#PBS -N copyRawSessions
 #PBS -S /bin/bash
 
 signal_handler() {
