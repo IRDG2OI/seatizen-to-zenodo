@@ -17,7 +17,7 @@ import glob
 from predict import annotation_model
 import json
 import zipfile
-from PIL import UnidentifiedImageError
+from PIL import Image
 
 # get folder list that contains images (['DCIM/100GOPRO/', 'DCIM/101GOPRO/'])
 def get_subfolders(folder_path):
@@ -256,6 +256,36 @@ def create_sessions_stats(session, session_name, jacques_model_path):
         f.write(f"Percentage of useless images: {percentage_useless:.2f}%\n")
     
     print(f"{session_name} statistics written to {output_file}.")
+
+def create_thumbnails(session):
+    list_of_dir = get_subfolders(f'{session}/DCIM/')
+    for directory in list_of_dir:
+        directory_name = directory.split("/")[-1]
+        print(f"Creating thumbnails for directory {directory_name}")
+        destination_folder = os.path.join(session, f"DCIM_thumbnails/{directory_name}/")
+        os.makedirs(destination_folder, exist_ok=True)
+        folder_path = os.path.join(session, directory)
+        file_list = os.listdir(folder_path)
+        for file_name in file_list:
+            try:
+                destination_path = os.path.join(destination_folder, file_name)
+                image_path = os.path.join(folder_path, file_name)
+                image = Image.open(image_path)
+                # Resize the images where shortest side is 256 pixels, keeping aspect ratio. 
+                if image.width > image.height: 
+                    factor = image.width/image.height
+                    image = image.resize(size=(int(round(factor*256,0)),256))
+                else:
+                    factor = image.height/image.width
+                    image = image.resize(size=(256, int(round(factor*256,0))))
+                # Crop out the center 224x224 portion of the image.
+
+                image = image.crop(box=((image.width/2)-112, (image.height/2)-112, (image.width/2)+112, (image.height/2)+112))
+
+                image.save(destination_path)
+            except Exception as e:
+                print(f"[ERROR] Failed to create thumbnail of {file_name}: {e}")
+
     
 
 def classify_sessions(sessions, session_index, jacques_model_path):
@@ -329,72 +359,85 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
     # Output:
         - sessions folders "Zenodo ready"
     '''
-    # classification
-    results_of_all_sessions = classify_sessions(sessions, session_index, jacques_model_path)
-    
-    list_of_sessions = get_sessions_list(sessions, session_index)
-    
-    # operations on each session
-    for session in list_of_sessions: 
-        # export results to csv file
-        model = jacques_model_path.split('/')[-1]
-        session_name = session.split('/')[-1]
-        # adding session name, jacques version and classification model version to csv filename
-        suffix = f"{session_name}_jacques-v0.1.0_model-{model.split('.')[0]}"
-        class_path = os.path.join(session, 'LABEL/classification_.csv')
-        class_path = class_path[:-4] + suffix + class_path[-4:]
-        results_of_all_sessions.to_csv(class_path, index = False, header = True)
-        print(f'\nClassification informations written at {class_path}\n')
-        
-        # move useless images
-        dest_path = os.path.join(dest_path, session_name)
-        move_out_images(class_path, dest_path, who_moves='useless')
-        
-        path =f'{session}/DCIM/'
-        
-        # delete BEFORE and AFTER folders if they exists
-        delete_folders(path)
-           
-        annot_path = annot_path[:-4] + session_name + annot_path[-4:]
-        final_csv_path = os.path.join(os.path.dirname(annot_path), "final_annotation_.csv")
-        final_csv_path = final_csv_path[:-4] + session_name + final_csv_path[-4:]
-        
-        # adding multilabel annotations
-        list_of_dir = get_subfolders(path)
-        list_of_df = []
-        for directory in list_of_dir:
-            print(f"\nAnnotations of images located in {directory}...")
-            images_path = os.path.join(session, directory)
-            df = annotation_model(images_path, annot_path, annotation_model_path, threshold_labels)
-            list_of_df.append(df)
-            
-        df = pd.concat(list_of_df, ignore_index=True)
-        df.sort_values(by="image", inplace=True)
-        df.to_csv(annot_path, index = False, header = True)
-        print(f'\nAnnotations CSV of {session} successfully created at {annot_path}\n')
-        
-        # join GPS metadata to annotation file
-        gps_info_csv_path = f'{session}/GPS/photos_location_{session_name}.csv'
-        if os.path.exists(gps_info_csv_path):
-            join_GPS_metadata(annot_path, gps_info_csv_path, final_csv_path)
-            print(f'Merged GPS metadata with annotation results at {final_csv_path}\n')
+    if len(sessions) != 0:
+        # classification
+        if len(jacques_model_path) != 0:
+            results_of_all_sessions = classify_sessions(sessions, session_index, jacques_model_path)
         else:
-            print(f"[ERROR] {gps_info_csv_path} not found. Could not merge GPS metadata with annotation results.")
+            results_of_all_sessions = -1
+        
+        list_of_sessions = get_sessions_list(sessions, session_index)
+        
+        # operations on each session
+        for session in list_of_sessions:
+            session_name = session.split('/')[-1]
 
-        # zip session folder if true in config file
-        if len(zipped_sessions_path) != 0:
-            try:
-                print(f"Zipping {session_name}...")
-                zip_folders(session, session_name, zipped_sessions_path)
-            except Exception as e:
-                print(e)
+            if results_of_all_sessions != -1:
+                # export results to csv file
+                model = jacques_model_path.split('/')[-1]
+                # adding session name, jacques version and classification model version to csv filename
+                suffix = f"{session_name}_jacques-v0.1.0_model-{model.split('.')[0]}"
+                class_path = os.path.join(session, 'LABEL/classification_.csv')
+                class_path = class_path[:-4] + suffix + class_path[-4:]
+                results_of_all_sessions.to_csv(class_path, index = False, header = True)
+                print(f'\nClassification informations written at {class_path}\n')
 
-        # create a .txt file in the METADATA folder of each session. This file give statistics about the jacques classification result.
-        try:
-            print(f"Creation of {session_name} jacques stats file...")
-            create_sessions_stats(session, session_name, jacques_model_path)
-        except Exception as e:
-            print(e)
+                # create a .txt file in the METADATA folder of each session. This file give statistics about the jacques classification result.
+                try:
+                    print(f"Creation of {session_name} jacques stats file...")
+                    create_sessions_stats(session, session_name, jacques_model_path)
+                except Exception as e:
+                    print(e)
+            
+            # move useless images
+            if len(dest_path) != 0:
+                dest_path = os.path.join(dest_path, session_name)
+                move_out_images(class_path, dest_path, who_moves='useless')
+            
+            path =f'{session}/DCIM/'
+            
+            # delete BEFORE and AFTER folders if they exists
+            delete_folders(path)
+            
+            if len(annot_path) != 0:
+                annot_path = annot_path[:-4] + session_name + annot_path[-4:]
+                final_csv_path = os.path.join(os.path.dirname(annot_path), "final_annotation_.csv")
+                final_csv_path = final_csv_path[:-4] + session_name + final_csv_path[-4:]
+                
+                # adding model annotations
+                list_of_dir = get_subfolders(path)
+                list_of_df = []
+                for directory in list_of_dir:
+                    print(f"\nAnnotations of images located in {directory}...")
+                    images_path = os.path.join(session, directory)
+                    df = annotation_model(images_path, annot_path, annotation_model_path, threshold_labels)
+                    list_of_df.append(df)
+                    
+                df = pd.concat(list_of_df, ignore_index=True)
+                df.sort_values(by="image", inplace=True)
+                df.to_csv(annot_path, index = False, header = True)
+                print(f'\nAnnotations CSV of {session} successfully created at {annot_path}\n')
+                
+                # join GPS metadata to annotation file
+                gps_info_csv_path = f'{session}/GPS/photos_location_{session_name}.csv'
+                if os.path.exists(gps_info_csv_path):
+                    join_GPS_metadata(annot_path, gps_info_csv_path, final_csv_path)
+                    print(f'Merged GPS metadata with annotation results at {final_csv_path}\n')
+                else:
+                    print(f"[ERROR] {gps_info_csv_path} not found. Could not merge GPS metadata with annotation results.")
+
+            # zip session folder if true in config file
+            if len(zipped_sessions_path) != 0:
+                try:
+                    print(f"Zipping {session_name}...")
+                    zip_folders(session, session_name, zipped_sessions_path)
+                except Exception as e:
+                    print(e)
+
+            # creation of a folder with thumbnails of images located in DCIM
+            create_thumbnails(session)
+    else:
+        print("[ERROR] You must fill in a path to your sessions in the config.json file! Refer to the README.md file for more informations.")
             
         
 def main():

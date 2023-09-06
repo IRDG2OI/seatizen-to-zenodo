@@ -16,8 +16,11 @@ The execution of the **folders_preparation.py** script will:
 1. Apply the jacques classification model on each session, moving out every useless images.
 2. Export the jacques classification results to a csv file.
 3. Create an annotations csv file from the given model, labels and thresholds.
-4. (Optional) Create zipped versions of each session folder.
+4. Create zipped versions of each session folder.
 5. Create a .txt file with jacques classification statistics (total images, number of useful/useless images, percentage of useless images in relation of total images).
+
+Depending on what you want to do, you may decide to carry out one step rather than another. <br/>
+The **config.json** file will allow you to precisely do that. See the end of this README for more informations on the configuration file.
 
 ### Installation
 #### Local
@@ -58,6 +61,8 @@ pip install fiftyone
 wget https://download.pytorch.org/models/resnet50-11ad3fa6.pth
 mv resnet50-11ad3fa6.pth ~/.cache/torch/hub/checkpoints/resnet50-11ad3fa6.pth
 ```
+4. Check if you have access to ***'/home/datawork-iot-nos/Seatizen/'*** on Datarmor. <br/>
+This is the folder where the execution environment is located.
 ### Usage
 #### Local
 1. Edit the **config.json** file with your local paths as described below.
@@ -96,14 +101,16 @@ This is the configuration file for the **folders_preparation.py** script. Here i
 
 - **jacques_model_path** <br/>
 It's the path to the jacques model. <br/>
-(ex: ***'/home/datawork-iot-nos/Seatizen/models/useless_classification/version_17/checkpoints/epoch=7-step=2056.ckpt'***)
+(ex: ***'/home/datawork-iot-nos/Seatizen/models/useless_classification/version_17/checkpoints/epoch=7-step=2056.ckpt'***) <br/>
+You can leave the quotes empty if you don't want to use the jacques classification model.
 
 - **annotation_model_path** <br/>
 It's the path to the annotation model. <br/>
-(ex: ***'/home/datawork-iot-nos/Seatizen/models/stage_leanne/herbier_classification/lightning_logs/version_17/checkpoints/epoch=8-step=620.ckpt'***)
+(ex: ***'/home/datawork-iot-nos/Seatizen/models/stage_leanne/herbier_classification/lightning_logs/version_17/checkpoints/epoch=8-step=620.ckpt'***) <br/>
+You can leave the quotes empty if you don't want to use the annotation model.
 
 - **sessions_path** <br/>
-It's the list of sessions, it can be either the path to a single directory that contains every sessions: <br/>
+This path must be provided. It's the list of sessions, it can be either the path to a single directory that contains every sessions: <br/>
 (ex: ***'/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions/'*** or a list of sessions paths: <br/>
 ***['/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions/session_2017_11_19_paddle_Black_Rocks']***)
 
@@ -114,7 +121,8 @@ If you don't want to zip the sessions, do not fill in a path, leave the quotes e
 
 - **useless_images_path** <br/>
 It's the folder path where useless images will me moved. <br/>
-(ex: ***'/home3/datawork/aboyer/mauritiusSessionsOutput/useless_images/'***)
+(ex: ***'/home3/datawork/aboyer/mauritiusSessionsOutput/useless_images/'***) <br/>
+If you don't want to move the useless images, leave the quotes empty.
 
 - **annotation_csv_path** <br/>
 It's the folder path where annotations csv will be created.<br/>(ex: ***'/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/test/output/results_csv/multilabel_annotation_.csv'***)
