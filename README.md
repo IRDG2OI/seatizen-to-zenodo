@@ -22,10 +22,8 @@ The execution of the **folders_preparation.py** script will:
 Depending on what you want to do, you may decide to carry out one step rather than another. <br/>
 The **config.json** file will allow you to precisely do that. See the end of this README for more informations on the configuration file.
 
-This script can only be used on sessions folders that respect the following architecture:
+This script can only be used on sessions folders that respect one of the architectures below:
 ```
-Seatizen tree (accepted in 08/2023) :
-
 YYYYMMDD_countrycode-optionalplace_device_nb
 │
 └───DCIM
@@ -39,6 +37,15 @@ YYYYMMDD_countrycode-optionalplace_device_nb
 │   └───IA
 │   └───PHOTOGRAMMETRY
 └───SENSORS
+```
+OR
+```
+YYYYMMDD_countrycode-optionalplace_device_nb
+│
+└───DCIM
+└───GPS
+└───LABEL
+└───METADATA
 ```
 
 ### Installation
