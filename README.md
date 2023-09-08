@@ -83,14 +83,14 @@ This will process the first session of the folder.
 
 #### Datarmor
 1. Edit the **config.json** file with your datarmor paths as described below.
-2. Modify the number of cpu, memory and the execution time needed by editing the following lines in **folders_prepation.pbs**:
+2. Modify the number of cpu, memory and the execution time needed by editing the following lines in **folders_preparation.pbs**:
 ```
 #PBS -l select=1:ncpus=8:mem=10g
 #PBS -l walltime=07:00:00
 ```
 If you are doing jacques classification, multilabel annotation and grass kelly annotation on 84 sessions that can contain up to 10 000 images each, above configuration should be enough.
 
-3. Indicate the **range of sessions** to be processed by adding or modifying the following line in **folders_prepation.pbs**:
+3. Indicate the **range of sessions** to be processed by adding or modifying the following line in **folders_preparation.pbs**:
 ```
 #PBS -J 1-84
 ```
@@ -151,7 +151,8 @@ If you don't want to move the useless images, leave the quotes empty.
 - **annotation_csv_path** <br/>
 There you can define the paths where annotations csv will be created for each model. <br/>
 Models names must match the ones defined in **annotation_model_path** and **threshold_labels**. <br/>
-(ex: ***{"multilabel": "/my/path/to/multilabel_annotation_.csv", "grass_kelly": "/my/path/to/grass_kelly_annotation_.csv"}***)
+(ex: ***{"multilabel": "/my/path/to/multilabel_annotation_.csv", "grass_kelly": "/my/path/to/grass_kelly_annotation_.csv"}***) <br/>
+You can leave the brackets empty if you don't want to use any model.
 
 - **threshold_labels** <br/>
 There you can associate each model to it's labels and corresponding thresholds. <br/>
@@ -159,7 +160,7 @@ There you can associate each model to it's labels and corresponding thresholds. 
 
 - **create_thumbnails** <br/>
 Boolean value: if **true**, a thumbnail folder will be created with resized images in it. <br/>
-Default value is **false**.
+If you want to skip thumbnails creation, write **false**.
 
 ---
 <div align="center">
