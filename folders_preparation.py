@@ -129,17 +129,27 @@ def join_GPS_metadata(annotation_csv_path, gps_info_csv_path, merged_csv_path):
     # Extract image names from the file paths
 #     annot_df['Image_name'] = annot_df['Image_path'].str.split('/').str[-1]
     annot_df['Image_name'] = annot_df['image']
-    gps_df['Image_name'] = gps_df['photo_relative_file_path'].str.split('/').str[-1]
+    try:
+        gps_df['Image_name'] = gps_df['photo_relative_file_path'].str.split('/').str[-1]
+    except KeyError:
+        gps_df['Image_name'] = gps_df['FileName']
     
     # Merge the DataFrames based on the image names
-    merged_df = annot_df.merge(gps_df[['Image_name', 'decimalLatitude', 'decimalLongitude', 'GPSDateTime']],
-                               on='Image_name', how='left')
+    try:
+        merged_df = annot_df.merge(gps_df[['Image_name', 'decimalLatitude', 'decimalLongitude', 'GPSDateTime']],
+                                on='Image_name', how='left')
+    except KeyError:
+        merged_df = annot_df.merge(gps_df[['Image_name', 'Composite:GPSLatitude', 'Composite:GPSLongitude', 'SubSecDateTimeOriginal']],
+                                on='Image_name', how='left')
     
     # Drop the 'Image_name' column from merged_df
     merged_df.drop(columns='Image_name', inplace=True)
     
     # Swapping latitude and longitude
-    merged_df = merged_df.rename(columns = {'decimalLatitude':'decimalLongitude', 'decimalLongitude':'decimalLatitude'})
+    try:
+        merged_df = merged_df.rename(columns = {'decimalLatitude':'decimalLongitude', 'decimalLongitude':'decimalLatitude'})
+    except KeyError:
+        pass
     
     merged_df.to_csv(merged_csv_path, index=False, header=True)
     
@@ -240,8 +250,12 @@ def zip_folders(session, session_name, destination_folder):
 
 def create_sessions_stats(session, session_name, jacques_model_path):
     jacques_model = jacques_model_path.split("/")[-1]
+    jacques_model = jacques_model.split(".")[0]
     input_file = os.path.join(session, f'LABEL/classification_{session_name}_jacques-v0.1.0_model-{jacques_model}.csv')
     output_file = os.path.join(session, f'METADATA/{session_name}_stats.txt')
+
+    if not os.path.exists(os.path.dirname(input_file)):
+        input_file = os.path.join(session, f'PROCESSED_DATA/IA/classification_{session_name}_jacques-v0.1.0_model-{jacques_model}.csv')
     
     df = pd.read_csv(input_file)
     total_images = len(df)
@@ -257,34 +271,56 @@ def create_sessions_stats(session, session_name, jacques_model_path):
     
     print(f"{session_name} statistics written to {output_file}.")
 
+def resize_images(source_folder, destination_folder, file_name):
+    destination_path = os.path.join(destination_folder, file_name)
+    image_path = os.path.join(source_folder, file_name)
+    image = Image.open(image_path)
+    # Resize the images where shortest side is 256 pixels, keeping aspect ratio. 
+    if image.width > image.height: 
+        factor = image.width/image.height
+        image = image.resize(size=(int(round(factor*256,0)),256))
+    else:
+        factor = image.height/image.width
+        image = image.resize(size=(256, int(round(factor*256,0))))
+    # Crop out the center 224x224 portion of the image.
+
+    image = image.crop(box=((image.width/2)-112, (image.height/2)-112, (image.width/2)+112, (image.height/2)+112))
+
+    image.save(destination_path)
+
+
 def create_thumbnails(session):
-    list_of_dir = get_subfolders(f'{session}/DCIM/')
-    for directory in list_of_dir:
-        directory_name = directory.split("/")[-1]
-        print(f"Creating thumbnails for directory {directory_name}")
-        destination_folder = os.path.join(session, f"DCIM_thumbnails/{directory_name}/")
+    '''
+    This function creates a folder THUMBNAILS and save in it resized images of the processed session.
+    '''
+    images_folder_path = f'{session}/DCIM/'
+    if os.path.exists(images_folder_path):
+        list_of_dir = get_subfolders(f'{session}/DCIM/')
+        for directory in list_of_dir:
+            directory_name = directory.split("/")[-1]
+            print(f"Creating thumbnails for directory {directory_name}")
+            destination_folder = os.path.join(session, f"THUMBNAILS/{directory_name}/")
+            os.makedirs(destination_folder, exist_ok=True)
+            folder_path = os.path.join(session, directory)
+            file_list = os.listdir(folder_path)
+            for file_name in file_list:
+                try:
+                    resize_images(folder_path, destination_folder, file_name)
+                except Exception as e:
+                    print(f"[ERROR] Failed to create thumbnail of {file_name}: {e}")
+                
+    else:
+        images_folder_path = os.path.join(session, 'PROCESSED_DATA/FRAMES/')
+        file_list = os.listdir(images_folder_path)
+        destination_folder = os.path.join(session, 'PROCESSED_DATA/THUMBNAILS/')
         os.makedirs(destination_folder, exist_ok=True)
-        folder_path = os.path.join(session, directory)
-        file_list = os.listdir(folder_path)
         for file_name in file_list:
             try:
-                destination_path = os.path.join(destination_folder, file_name)
-                image_path = os.path.join(folder_path, file_name)
-                image = Image.open(image_path)
-                # Resize the images where shortest side is 256 pixels, keeping aspect ratio. 
-                if image.width > image.height: 
-                    factor = image.width/image.height
-                    image = image.resize(size=(int(round(factor*256,0)),256))
-                else:
-                    factor = image.height/image.width
-                    image = image.resize(size=(256, int(round(factor*256,0))))
-                # Crop out the center 224x224 portion of the image.
-
-                image = image.crop(box=((image.width/2)-112, (image.height/2)-112, (image.width/2)+112, (image.height/2)+112))
-
-                image.save(destination_path)
+                resize_images(images_folder_path, destination_folder, file_name)
             except Exception as e:
                 print(f"[ERROR] Failed to create thumbnail of {file_name}: {e}")
+
+
 
     
 
@@ -312,19 +348,42 @@ def classify_sessions(sessions, session_index, jacques_model_path):
         print("-----------------------------------------------")
         print(session)
         print("-----------------------------------------------")
-        list_of_dir = get_subfolders(f'{session}/DCIM/')
-        for directory in list_of_dir:
-            print('\n' + directory)
-            folder_path = os.path.join(session, directory)
+        dcim_path = f'{session}/DCIM/'
+        if os.path.exists(dcim_path):
+            list_of_dir = get_subfolders(dcim_path)
+            print("\n[Images processing]")
+            for directory in list_of_dir:
+                print('\n' + directory)
+                folder_path = os.path.join(session, directory)
+                file_list = os.listdir(folder_path)
+                for file_name in file_list:
+                    if file_name.startswith('._'):
+                        file_path = os.path.join(folder_path, file_name)
+                        try:
+                            os.remove(file_path)
+                            print(f"\nRemoved unidentified image: {file_name}")
+                        except OSError as e:
+                            print(f"\nError removing image {file_name}: {e}")
+
+                try:
+                    results = predictor.classify_useless_images(folder_path=folder_path, ckpt_path=jacques_model_path)
+                    results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
+                except Exception as e:
+                    print(f"\n[ERROR] Classification error in {directory}: {e}")
+                    pass
+        else: # if there are no folders in DCIM or if DCIM doesn't exists, it means we are dealing with frames
+            print("\n[Frames processing]")
+            folder_path = os.path.join(session, 'PROCESSED_DATA/FRAMES/')
             file_list = os.listdir(folder_path)
+
             for file_name in file_list:
-                if file_name.startswith('._'):
-                    file_path = os.path.join(folder_path, file_name)
-                    try:
-                        os.remove(file_path)
-                        print(f"\nRemoved unidentified image: {file_name}")
-                    except OSError as e:
-                        print(f"\nError removing image {file_name}: {e}")
+                    if file_name.startswith('._'):
+                        file_path = os.path.join(folder_path, file_name)
+                        try:
+                            os.remove(file_path)
+                            print(f"\nRemoved unidentified image: {file_name}")
+                        except OSError as e:
+                            print(f"\nError removing image {file_name}: {e}")
 
             try:
                 results = predictor.classify_useless_images(folder_path=folder_path, ckpt_path=jacques_model_path)
@@ -332,11 +391,12 @@ def classify_sessions(sessions, session_index, jacques_model_path):
             except Exception as e:
                 print(f"\n[ERROR] Classification error in {directory}: {e}")
                 pass
+        
                     
 
     return results_of_all_sessions
 
-def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels):
+def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, thumbnails_creation):
     '''
     Function to restructure sessions folders to be "Zenodo ready"
     # Input:
@@ -356,6 +416,8 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
             ## path to annotation model. (ex: '/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/models/multilabel_with_sable.pth')
         - thresholds_labels:
             ## a dictionnary that contains labels names and their associated thresholds
+        - thumbnails_creation:
+            ## either or not to create thumbnails of the images
     # Output:
         - sessions folders "Zenodo ready"
     '''
@@ -364,7 +426,7 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
         if len(jacques_model_path) != 0:
             results_of_all_sessions = classify_sessions(sessions, session_index, jacques_model_path)
         else:
-            results_of_all_sessions = -1
+            results_of_all_sessions = pd.DataFrame(data={}) # empty dataframe
         
         list_of_sessions = get_sessions_list(sessions, session_index)
         
@@ -372,12 +434,18 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
         for session in list_of_sessions:
             session_name = session.split('/')[-1]
 
-            if results_of_all_sessions != -1:
+            if not results_of_all_sessions.empty:
                 # export results to csv file
                 model = jacques_model_path.split('/')[-1]
                 # adding session name, jacques version and classification model version to csv filename
                 suffix = f"{session_name}_jacques-v0.1.0_model-{model.split('.')[0]}"
                 class_path = os.path.join(session, 'LABEL/classification_.csv')
+
+                if not os.path.exists(os.path.dirname(class_path)):
+                    class_path = os.path.join(session, 'PROCESSED_DATA/IA/')
+                    os.makedirs(class_path, exist_ok=True)
+                    class_path = os.path.join(class_path, 'classification_.csv')
+
                 class_path = class_path[:-4] + suffix + class_path[-4:]
                 results_of_all_sessions.to_csv(class_path, index = False, header = True)
                 print(f'\nClassification informations written at {class_path}\n')
@@ -394,37 +462,58 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
                 dest_path = os.path.join(dest_path, session_name)
                 move_out_images(class_path, dest_path, who_moves='useless')
             
-            path =f'{session}/DCIM/'
+            image_folder_path = f'{session}/DCIM/'
+            if os.path.exists(image_folder_path):
+                # delete BEFORE and AFTER folders if they exists
+                delete_folders(image_folder_path)
+            else:
+                image_folder_path = os.path.join(session, 'PROCESSED_DATA/FRAMES/')
+
             
-            # delete BEFORE and AFTER folders if they exists
-            delete_folders(path)
-            
-            if len(annot_path) != 0:
-                annot_path = annot_path[:-4] + session_name + annot_path[-4:]
-                final_csv_path = os.path.join(os.path.dirname(annot_path), "final_annotation_.csv")
-                final_csv_path = final_csv_path[:-4] + session_name + final_csv_path[-4:]
-                
-                # adding model annotations
-                list_of_dir = get_subfolders(path)
-                list_of_df = []
-                for directory in list_of_dir:
-                    print(f"\nAnnotations of images located in {directory}...")
-                    images_path = os.path.join(session, directory)
-                    df = annotation_model(images_path, annot_path, annotation_model_path, threshold_labels)
-                    list_of_df.append(df)
+            for key, path in annot_path.items():
+                if len(path) != 0:
+                    print(f"\nStarting annotations using {key} model.")
+                    csv_annotation_path = path[:-4] + session_name + path[-4:]
+                    final_csv_path = os.path.join(os.path.dirname(csv_annotation_path), "final_annotation_.csv")
+                    final_csv_path = final_csv_path[:-4] + session_name + final_csv_path[-4:]
+
+                    try:
+                        model_path = annotation_model_path.get(key)
+                    except KeyError:
+                        print(f"{key} not found in annotation_model_path definition in config.json file.")
+                    try:
+                        model_thresholds_labels = threshold_labels.get(key)
+                    except KeyError:
+                        print(f"{key} not found in threshold_labels definition in config.json file.")
+
+                    # adding model annotations
                     
-                df = pd.concat(list_of_df, ignore_index=True)
-                df.sort_values(by="image", inplace=True)
-                df.to_csv(annot_path, index = False, header = True)
-                print(f'\nAnnotations CSV of {session} successfully created at {annot_path}\n')
-                
-                # join GPS metadata to annotation file
-                gps_info_csv_path = f'{session}/GPS/photos_location_{session_name}.csv'
-                if os.path.exists(gps_info_csv_path):
-                    join_GPS_metadata(annot_path, gps_info_csv_path, final_csv_path)
-                    print(f'Merged GPS metadata with annotation results at {final_csv_path}\n')
-                else:
-                    print(f"[ERROR] {gps_info_csv_path} not found. Could not merge GPS metadata with annotation results.")
+                    list_of_dir = get_subfolders(image_folder_path)
+                    list_of_df = []
+
+                    if len(list_of_dir) != 0:
+                        for directory in list_of_dir:
+                            print(f"\nAnnotations of images located in {directory}...")
+                            images_path = os.path.join(session, directory)
+                            df = annotation_model(images_path, csv_annotation_path, model_path, model_thresholds_labels)
+                            list_of_df.append(df)
+
+                        df = pd.concat(list_of_df, ignore_index=True)
+                    else:
+                        df = annotation_model(image_folder_path, csv_annotation_path, model_path, model_thresholds_labels)
+                        
+                    df.sort_values(by="image", inplace=True)
+                    df.to_csv(csv_annotation_path, index = False, header = True)
+                    print(f'\nAnnotations CSV of {session} successfully created at {csv_annotation_path}\n')
+                    
+                    # join GPS metadata to annotation file
+                    gps_info_csv_path = f'{session}/GPS/photos_location_{session_name}.csv'
+                    if os.path.exists(gps_info_csv_path):
+                        join_GPS_metadata(csv_annotation_path, gps_info_csv_path, final_csv_path)
+                        print(f'Merged GPS metadata with annotation results at {final_csv_path}\n')
+                    else:
+                        gps_info_csv_path = f'{session}/METADATA/metadata.csv'
+                        join_GPS_metadata(csv_annotation_path, gps_info_csv_path, final_csv_path)
 
             # zip session folder if true in config file
             if len(zipped_sessions_path) != 0:
@@ -434,8 +523,9 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
                 except Exception as e:
                     print(e)
 
-            # creation of a folder with thumbnails of images located in DCIM
-            create_thumbnails(session)
+            if thumbnails_creation:
+                # creation of a folder with thumbnails of images located in DCIM or FRAMES
+                create_thumbnails(session)
     else:
         print("[ERROR] You must fill in a path to your sessions in the config.json file! Refer to the README.md file for more informations.")
             
@@ -467,10 +557,12 @@ def main():
     annot_path = config["paths"]["annotation_csv_path"]
     ## threshold labels dictionnary
     threshold_labels = config["threshold_labels"]
+    ## thumbnails creation
+    thumbnails_creation = config["create_thumbnails"]
     
     if hasattr(args, "session_index"):
         session_index = args.session_index - 1
-        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels)
+        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, thumbnails_creation)
         execution_time_seconds = time.time() - start_time
         execution_time_minutes = "{:.2f}".format(execution_time_seconds / 60)
         print("\n========================================================")
@@ -478,7 +570,7 @@ def main():
         print(f"Total execution time: {execution_time_minutes} minutes")
     else: # execution on all sessions in the folder
         session_index = -1
-        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels)
+        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, thumbnails_creation)
         execution_time_seconds = time.time() - start_time
         execution_time_minutes = "{:.2f}".format(execution_time_seconds / 60)
         print("\n========================================================")

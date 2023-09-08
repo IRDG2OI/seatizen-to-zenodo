@@ -1,36 +1,48 @@
 {
     "paths": {
-        "jacques_model_path": "",
-        "annotation_model_path": "",
-
-        "sessions_path": "/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_unzipped_04092023/",
+        "jacques_model_path": "/home/datawork-iot-nos/Seatizen/models/useless_classification/version_alexmatteo_20230904/version_13/checkpoints/epoch=8-step=2817.ckpt",
+        "annotation_model_path": {
+            "multilabel": "/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/models/multilabel_with_sable.pth",
+            "grass_kelly": "/home/datawork-iot-nos/Seatizen/models/stage_leanne/herbier_classification/lightning_logs/version_31/checkpoints/epoch=7-step=688.ckpt"
+        },
+        "sessions_path": "",
         "zipped_sessions_path": "",
         "useless_images_path": "",
-        "annotation_csv_path": ""
+        "annotation_csv_path": {
+            "multilabel": "",
+            "grass_kelly": ""
+        }
     },
 
     "threshold_labels": {
-        "Acropore_branched": 0.56,
-        "Acropore_digitised": 0.48,
-        "Acropore_tabular": 0.95,
-        "Algae_assembly": 0.33,
-        "Algae_limestone": 0.88,
-        "Algae_sodding": 0.51,
-        "Dead_coral": 0.66,
-        "Fish": 0.4,
-        "Human_object": 0.2,
-        "Living_coral": 0.34,
-        "Millepore": 0.34,
-        "No_acropore_encrusting": 0.1,
-        "No_acropore_massive": 0.15,
-        "No_acropore_sub_massive": 0.16,
-        "Rock": 0.34,
-        "Sand": 0.63,
-        "Scrap": 0.07,
-        "Sea_cucumber": 0.38,
-        "Syringodium_isoetifolium": 0.54,
-        "Thalassodendron_ciliatum": 0.23,
-        "Useless": 0.16
-    }
+        "multilabel": {
+            "Acropore_branched": 0.56,
+            "Acropore_digitised": 0.48,
+            "Acropore_tabular": 0.95,
+            "Algae_assembly": 0.33,
+            "Algae_limestone": 0.88,
+            "Algae_sodding": 0.51,
+            "Dead_coral": 0.66,
+            "Fish": 0.4,
+            "Human_object": 0.2,
+            "Living_coral": 0.34,
+            "Millepore": 0.34,
+            "No_acropore_encrusting": 0.1,
+            "No_acropore_massive": 0.15,
+            "No_acropore_sub_massive": 0.16,
+            "Rock": 0.34,
+            "Sand": 0.63,
+            "Scrap": 0.07,
+            "Sea_cucumber": 0.38,
+            "Syringodium_isoetifolium": 0.54,
+            "Thalassodendron_ciliatum": 0.23,
+            "Useless": 0.16
+        },
 
+        "grass_kelly": {
+            "herbier": 0.592
+        }
+    },
+
+    "create_thumbnails": false
 }

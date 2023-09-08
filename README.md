@@ -79,16 +79,22 @@ This will process the first session of the folder.
 
 #### Datarmor
 1. Edit the **config.json** file with your datarmor paths as described below.
-2. Indicate the range of sessions to be processed by modifying line 5 of **folders_prepation.pbs**:
+2. Indicate the **range of sessions** to be processed by modifying line 5 of **folders_prepation.pbs**:
 ```
 #PBS -J 5-70
 ```
 This means that you want to process the sessions 5 to 70 in the list of sessions you specified. <br/>
-If you want to process only one session, you can do so by removing the **#PBS -J 5-70** line and replace **$PBS_ARRAY_INDEX** on line 21 with the index of the session you want to process:
+
+If you want to process only **one session**, you can do so by removing the **#PBS -J 5-70** line and replace **$PBS_ARRAY_INDEX** on line 21 with the index of the session you want to process:
 ```
 python /path/to/folders_preparation.py --session-index 1
 ```
-This will only process the first session of the folder.
+This will only process the first session of the folder. <br/>
+
+You can write the following if you want to process a **list of sessions** indicated in the config.json file:
+```
+python /path/to/folders_preparation.py
+```
 
 3. Start the **folders_preparation.pbs** script:
 ```
@@ -101,35 +107,41 @@ This is the configuration file for the **folders_preparation.py** script. Here i
 
 - **jacques_model_path** <br/>
 It's the path to the jacques model. <br/>
-(ex: ***'/home/datawork-iot-nos/Seatizen/models/useless_classification/version_17/checkpoints/epoch=7-step=2056.ckpt'***) <br/>
+(ex: ***'/home/datawork-iot-nos/Seatizen/models/useless_classification/version_alexmatteo_20230904/version_13/checkpoints/epoch=8-step=2817.ckpt'***) <br/>
 You can leave the quotes empty if you don't want to use the jacques classification model.
 
 - **annotation_model_path** <br/>
-It's the path to the annotation model. <br/>
-(ex: ***'/home/datawork-iot-nos/Seatizen/models/stage_leanne/herbier_classification/lightning_logs/version_17/checkpoints/epoch=8-step=620.ckpt'***) <br/>
-You can leave the quotes empty if you don't want to use the annotation model.
+There you can add models names and their associated paths. Models names must match the ones defined in **annotation_csv_path** and **threshold_labels**.<br/>
+(ex: ***{"multilabel": "/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/models/multilabel_with_sable.pth", "grass_kelly": "/home/datawork-iot-nos/Seatizen/models/stage_leanne/herbier_classification/lightning_logs/version_31/checkpoints/epoch=7-step=688.ckpt"}***) <br/>
+You can leave the brackets empty if you don't want to use any model.
 
 - **sessions_path** <br/>
 This path must be provided. It's the list of sessions, it can be either the path to a single directory that contains every sessions: <br/>
-(ex: ***'/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions/'*** or a list of sessions paths: <br/>
-***['/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions/session_2017_11_19_paddle_Black_Rocks']***)
+(ex: ***'/my/path/to/my_sessions/'*** or a list of sessions paths:
+***['/my/path/to/session1', '/my/path/to/session2']***)
 
 - **zipped_sessions_path** <br/>
 It's the path to the folder where you want to create the zipped version of each session: <br/>
-(ex:***'/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_zipped/'***) <br/>
+(ex:***'/my/path/to/zip_folder/'***) <br/>
 If you don't want to zip the sessions, do not fill in a path, leave the quotes empty.
 
 - **useless_images_path** <br/>
 It's the folder path where useless images will me moved. <br/>
-(ex: ***'/home3/datawork/aboyer/mauritiusSessionsOutput/useless_images/'***) <br/>
+(ex: ***'/my/path/to/useless_images_folder/'***) <br/>
 If you don't want to move the useless images, leave the quotes empty.
 
 - **annotation_csv_path** <br/>
-It's the folder path where annotations csv will be created.<br/>(ex: ***'/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/test/output/results_csv/multilabel_annotation_.csv'***)
+There you can define the paths where annotations csv will be created for each model. <br/>
+Models names must match the ones defined in **annotation_model_path** and **threshold_labels**. <br/>
+(ex: ***{"multilabel": "/my/path/to/multilabel_annotation_.csv", "grass_kelly": "/my/path/to/grass_kelly_annotation_.csv"}***)
 
 - **threshold_labels** <br/>
-It's a dictionnary where the keys are the annotation model labels and the values are their associated thresholds. <br/>
-(ex: ***{"herbier": 0.592}***)
+There you can associate each model to it's labels and corresponding thresholds. <br/>
+(ex: ***{"multilabel": {"Acropore_branched": 0.56, "Acropore_digitised": 0.48,...},"grass_kelly": {"herbier": 0.592}}***)
+
+- **create_thumbnails** <br/>
+Boolean value: if **true**, a thumbnail folder will be created with resized images in it. <br/>
+Default value is **false**.
 
 ---
 <div align="center">
