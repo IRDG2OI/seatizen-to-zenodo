@@ -55,7 +55,11 @@ pip install fiftyone
 ```
 #### Datarmor
 1. Download the git repository as a ZIP and extract it in a folder of your datahome.
-2. Modify lines 15 and 21 of folders_preparation.pbs with your installation path.
+2. Modify the following lines of **folders_preparation.pbs** with your own installation path.
+```
+cd /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest
+python /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/folders_preparation.py 
+```
 3. Download the resnet model
 ```
 wget https://download.pytorch.org/models/resnet50-11ad3fa6.pth
@@ -79,24 +83,38 @@ This will process the first session of the folder.
 
 #### Datarmor
 1. Edit the **config.json** file with your datarmor paths as described below.
-2. Indicate the **range of sessions** to be processed by modifying line 5 of **folders_prepation.pbs**:
+2. Modify the number of cpu, memory and the execution time needed by editing the following lines in **folders_prepation.pbs**:
 ```
-#PBS -J 5-70
+#PBS -l select=1:ncpus=8:mem=10g
+#PBS -l walltime=07:00:00
 ```
-This means that you want to process the sessions 5 to 70 in the list of sessions you specified. <br/>
+If you are doing jacques classification, multilabel annotation and grass kelly annotation on 84 sessions that can contain up to 10 000 images each, above configuration should be enough.
 
-If you want to process only **one session**, you can do so by removing the **#PBS -J 5-70** line and replace **$PBS_ARRAY_INDEX** on line 21 with the index of the session you want to process:
+3. Indicate the **range of sessions** to be processed by adding or modifying the following line in **folders_prepation.pbs**:
+```
+#PBS -J 1-84
+```
+This means that you want to process the sessions 1 to 84 in the list of sessions you specified. <br/>
+If you are adding this line, don't forget to add **$PBS_ARRAY_INDEX** here:
+```
+python /path/to/folders_preparation.py --session-index $PBS_ARRAY_INDEX
+```
+
+If you want to process only **one session**, you can do so by removing the **#PBS -J 1-84** line and replace **$PBS_ARRAY_INDEX** in the following line with the index of the session you want to process:
 ```
 python /path/to/folders_preparation.py --session-index 1
 ```
 This will only process the first session of the folder. <br/>
 
-You can write the following if you want to process a **list of sessions** indicated in the config.json file:
+You can simply write the following if you want to process a **list of sessions** indicated in the config.json file:
 ```
 python /path/to/folders_preparation.py
 ```
-
-3. Start the **folders_preparation.pbs** script:
+4. Indicate a name for the pbs log files that will be created in your working directory for each session processed:
+```
+#PBS -N parallelSessionsProcessing
+```
+5. Start the **folders_preparation.pbs** script:
 ```
 qsub -m bea -M prenom.nom@yourmail.com folders_preparation.pbs
 ```
@@ -126,7 +144,7 @@ It's the path to the folder where you want to create the zipped version of each 
 If you don't want to zip the sessions, do not fill in a path, leave the quotes empty.
 
 - **useless_images_path** <br/>
-It's the folder path where useless images will me moved. <br/>
+It's the folder path where useless images will be moved. <br/>
 (ex: ***'/my/path/to/useless_images_folder/'***) <br/>
 If you don't want to move the useless images, leave the quotes empty.
 
