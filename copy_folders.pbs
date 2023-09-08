@@ -2,9 +2,8 @@
 #PBS -q omp
 #PBS -l select=1:ncpus=2:mem=1g
 #PBS -l walltime=01:00:00
-#PBS -J 1-84
 #PBS -m n
-#PBS -N copyRawSessions
+#PBS -N copyUsefulImages
 #PBS -S /bin/bash
 
 signal_handler() {
@@ -17,7 +16,7 @@ cd /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest
 
 . /appli/anaconda/latest/etc/profile.d/conda.sh
 conda activate /home/datawork-iot-nos/Seatizen/conda-env/jacques_cpu
-python /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/copy_folders.py --session-index $PBS_ARRAY_INDEX
+python /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/copy_folders.py
 conda deactivate
 
 qstat -f $PBS_JOBID
