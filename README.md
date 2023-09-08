@@ -22,6 +22,25 @@ The execution of the **folders_preparation.py** script will:
 Depending on what you want to do, you may decide to carry out one step rather than another. <br/>
 The **config.json** file will allow you to precisely do that. See the end of this README for more informations on the configuration file.
 
+This script can only be used on sessions folders that respect the following architecture:
+```
+Seatizen tree (accepted in 08/2023) :
+
+YYYYMMDD_countrycode-optionalplace_device_nb
+│
+└───DCIM
+└───GPS
+│   └───BASE
+│   └───DEVICE
+└───METADATA
+└───PROCESSED_DATA
+│   └───BATHY
+│   └───FRAMES
+│   └───IA
+│   └───PHOTOGRAMMETRY
+└───SENSORS
+```
+
 ### Installation
 #### Local
 1. Clone the git repository
@@ -48,10 +67,6 @@ See how to do that here: [Jacques](https://github.com/IRDG2OI/jacques)
 5. Install detectron2
 ```
 python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
-```
-6. Install fiftyone
-```
-pip install fiftyone
 ```
 #### Datarmor
 1. Download the git repository as a ZIP and extract it in a folder of your datahome.
