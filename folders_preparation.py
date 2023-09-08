@@ -248,6 +248,42 @@ def zip_folders(session, session_name, destination_folder):
 
     print(f"{session_name} zipped in {destination_folder} successfully.\n")
 
+def copy_and_zip_folder(src_folder, dest_folder, session_name):
+    session_folder = os.path.join(dest_folder, session_name)
+
+    # Copy the source folder to the destination folder
+    shutil.copytree(src_folder, session_folder)
+
+    # List subdirectories in the session folder
+    subdirs = [os.path.join(session_folder, subdir) for subdir in os.listdir(session_folder) if os.path.isdir(os.path.join(session_folder, subdir))]
+
+    # Zip subfolders with specific names: DCIM, GPS, or PROCESSED_DATA
+    for subdir in subdirs:
+        subdir_name = os.path.basename(subdir)
+        if subdir_name in ["DCIM", "GPS", "PROCESSED_DATA"]:
+            zip_filename = os.path.join(session_folder, f"{subdir_name}.zip")
+            with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(subdir):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.relpath(file_path, subdir)
+                        zipf.write(file_path, arcname)
+
+            # Delete the original subdirectory and its contents
+            shutil.rmtree(subdir)
+
+    # Zip the entire copied folder
+    zip_filename = os.path.join(dest_folder, f"{session_name}.zip")
+    with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(session_folder):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, session_folder)
+                zipf.write(file_path, arcname)
+
+    # Delete the copied folder
+    shutil.rmtree(session_folder)
+
 def create_sessions_stats(session, session_name, jacques_model_path):
     jacques_model = jacques_model_path.split("/")[-1]
     jacques_model = jacques_model.split(".")[0]
@@ -517,9 +553,10 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
 
             # zip session folder if true in config file
             if len(zipped_sessions_path) != 0:
+                print(f"Zipping {session_name}...")
                 try:
-                    print(f"Zipping {session_name}...")
-                    zip_folders(session, session_name, zipped_sessions_path)
+                    copy_and_zip_folder(session, zipped_sessions_path, session_name)
+                    print(f"\n{session_name} successfully zipped.")
                 except Exception as e:
                     print(e)
 

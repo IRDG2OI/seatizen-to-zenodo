@@ -1,11 +1,11 @@
 {
     "paths": {
-        "jacques_model_path": "/home/datawork-iot-nos/Seatizen/models/useless_classification/version_alexmatteo_20230904/version_13/checkpoints/epoch=8-step=2817.ckpt",
+        "jacques_model_path": "",
         "annotation_model_path": {
-            "multilabel": "/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/models/multilabel_with_sable.pth",
-            "grass_kelly": "/home/datawork-iot-nos/Seatizen/models/stage_leanne/herbier_classification/lightning_logs/version_31/checkpoints/epoch=7-step=688.ckpt"
+            "multilabel": "",
+            "grass_kelly": ""
         },
-        "sessions_path": "",
+        "sessions_path": [""],
         "zipped_sessions_path": "",
         "useless_images_path": "",
         "annotation_csv_path": {

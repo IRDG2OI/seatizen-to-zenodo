@@ -1,9 +1,9 @@
 #/bin/bash
 #PBS -q omp
-#PBS -l select=1:ncpus=8:mem=10g
-#PBS -l walltime=02:30:00
+#PBS -l select=1:ncpus=2:mem=2g
+#PBS -l walltime=00:10:00
 #PBS -m n
-#PBS -N testAldabraSession
+#PBS -N zippingTestAldabraSession
 #PBS -S /bin/bash
 
 signal_handler() {
