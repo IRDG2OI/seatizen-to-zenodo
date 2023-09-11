@@ -212,7 +212,10 @@ def merge_all_final_csv(csv_path):
         df = pd.read_csv(file)
         dfs.append(df)
     
-    merged_df = pd.concat(dfs, ignore_index=True)
+    try:
+        merged_df = pd.concat(dfs, ignore_index=True)
+    except Exception: # if there is only one final_ csv file
+        merged_df = df
     
     merged_df["sessions"] = merged_df["dir"].apply(lambda x: os.path.basename(os.path.dirname(os.path.dirname(x))))
     merged_df.sort_values(by='sessions', inplace=True)
@@ -565,6 +568,9 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
                     else:
                         gps_info_csv_path = f'{session}/METADATA/metadata.csv'
                         join_GPS_metadata(csv_annotation_path, gps_info_csv_path, final_csv_path)
+                    
+                    # merge all sessions final annotation
+                    merge_all_final_csv(csv_annotation_path)
 
             # zip session folder if true in config file
             if len(zipped_sessions_path) != 0:
