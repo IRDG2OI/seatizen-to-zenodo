@@ -15,7 +15,7 @@ The execution of the **folders_preparation.py** script will:
 
 1. Apply the jacques classification model on each session, moving out every useless images.
 2. Export the jacques classification results to a csv file.
-3. Create an annotations csv file from the given model, labels and thresholds.
+3. Create annotations csv files from the given model, labels and thresholds.
 4. Create zipped versions of each session folder.
 5. Create a .txt file with jacques classification statistics (total images, number of useful/useless images, percentage of useless images in relation of total images).
 
@@ -24,6 +24,8 @@ The **config.json** file will allow you to precisely do that. See the end of thi
 
 This script can only be used on sessions folders that respect one of the architectures below:
 ```
+1st architecture
+
 YYYYMMDD_countrycode-optionalplace_device_nb
 │
 └───DCIM
@@ -40,6 +42,8 @@ YYYYMMDD_countrycode-optionalplace_device_nb
 ```
 OR
 ```
+2sd architecture
+
 YYYYMMDD_countrycode-optionalplace_device_nb
 │
 └───DCIM
@@ -181,7 +185,9 @@ There you can associate each model to it's labels and corresponding thresholds. 
 (ex: ***{"multilabel": {"Acropore_branched": 0.56, "Acropore_digitised": 0.48,...},"grass_kelly": {"herbier": 0.592}}***)
 
 - **create_thumbnails** <br/>
-Boolean value: if **true**, a thumbnail folder will be created with resized images in it. <br/>
+Boolean value: if **true**, a folder named THUMBNAILS will be created with resized images in it. <br/>
+If you are using the first directory architecture, this folder will be located at 'PROCESSED_DATA/THUMBNAILS/'. <br/>
+If you are using the second directory architecture, this folder will be located at the root of the session. <br/>
 If you want to skip thumbnails creation, write **false**.
 
 ---

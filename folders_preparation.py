@@ -324,6 +324,17 @@ def resize_images(source_folder, destination_folder, file_name):
 
     image.save(destination_path)
 
+def frames_thumbnails(session):
+    images_folder_path = os.path.join(session, 'PROCESSED_DATA/FRAMES/')
+    file_list = os.listdir(images_folder_path)
+    destination_folder = os.path.join(session, 'PROCESSED_DATA/THUMBNAILS/')
+    os.makedirs(destination_folder, exist_ok=True)
+    for file_name in file_list:
+        try:
+            resize_images(images_folder_path, destination_folder, file_name)
+        except Exception as e:
+            print(f"[ERROR] Failed to create thumbnail of {file_name}: {e}")
+
 
 def create_thumbnails(session):
     '''
@@ -332,29 +343,45 @@ def create_thumbnails(session):
     images_folder_path = f'{session}/DCIM/'
     if os.path.exists(images_folder_path):
         list_of_dir = get_subfolders(f'{session}/DCIM/')
-        for directory in list_of_dir:
-            directory_name = directory.split("/")[-1]
-            print(f"Creating thumbnails for directory {directory_name}")
-            destination_folder = os.path.join(session, f"THUMBNAILS/{directory_name}/")
-            os.makedirs(destination_folder, exist_ok=True)
-            folder_path = os.path.join(session, directory)
-            file_list = os.listdir(folder_path)
-            for file_name in file_list:
-                try:
-                    resize_images(folder_path, destination_folder, file_name)
-                except Exception as e:
-                    print(f"[ERROR] Failed to create thumbnail of {file_name}: {e}")
-                
+        if len(list_of_dir) != 0:
+            for directory in list_of_dir:
+                directory_name = directory.split("/")[-1]
+                print(f"Creating thumbnails for directory {directory_name}")
+                destination_folder = os.path.join(session, f"THUMBNAILS/{directory_name}/")
+                os.makedirs(destination_folder, exist_ok=True)
+                folder_path = os.path.join(session, directory)
+                file_list = os.listdir(folder_path)
+                for file_name in file_list:
+                    try:
+                        resize_images(folder_path, destination_folder, file_name)
+                    except Exception as e:
+                        print(f"[ERROR] Failed to create thumbnail of {file_name}: {e}")
+        else:
+            frames_thumbnails(session)        
     else:
-        images_folder_path = os.path.join(session, 'PROCESSED_DATA/FRAMES/')
-        file_list = os.listdir(images_folder_path)
-        destination_folder = os.path.join(session, 'PROCESSED_DATA/THUMBNAILS/')
-        os.makedirs(destination_folder, exist_ok=True)
-        for file_name in file_list:
+        frames_thumbnails(session)
+        
+
+def process_frames(session, directory, jacques_model_path):
+    print("\n[Frames processing]")
+    folder_path = os.path.join(session, 'PROCESSED_DATA/FRAMES/')
+    file_list = os.listdir(folder_path)
+
+    for file_name in file_list:
+        if file_name.startswith('._'):
+            file_path = os.path.join(folder_path, file_name)
             try:
-                resize_images(images_folder_path, destination_folder, file_name)
-            except Exception as e:
-                print(f"[ERROR] Failed to create thumbnail of {file_name}: {e}")
+                os.remove(file_path)
+                print(f"\nRemoved unidentified image: {file_name}")
+            except OSError as e:
+                print(f"\nError removing image {file_name}: {e}")
+
+    try:
+        results = predictor.classify_useless_images(folder_path=folder_path, ckpt_path=jacques_model_path)
+        results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
+    except Exception as e:
+        print(f"\n[ERROR] Classification error in {directory}: {e}")
+        pass
 
 
 
@@ -387,46 +414,31 @@ def classify_sessions(sessions, session_index, jacques_model_path):
         dcim_path = f'{session}/DCIM/'
         if os.path.exists(dcim_path):
             list_of_dir = get_subfolders(dcim_path)
-            print("\n[Images processing]")
-            for directory in list_of_dir:
-                print('\n' + directory)
-                folder_path = os.path.join(session, directory)
-                file_list = os.listdir(folder_path)
-                for file_name in file_list:
-                    if file_name.startswith('._'):
-                        file_path = os.path.join(folder_path, file_name)
-                        try:
-                            os.remove(file_path)
-                            print(f"\nRemoved unidentified image: {file_name}")
-                        except OSError as e:
-                            print(f"\nError removing image {file_name}: {e}")
+            if len(list_of_dir) != 0:
+                print("\n[Images processing]")
+                for directory in list_of_dir:
+                    print('\n' + directory)
+                    folder_path = os.path.join(session, directory)
+                    file_list = os.listdir(folder_path)
+                    for file_name in file_list:
+                        if file_name.startswith('._'):
+                            file_path = os.path.join(folder_path, file_name)
+                            try:
+                                os.remove(file_path)
+                                print(f"\nRemoved unidentified image: {file_name}")
+                            except OSError as e:
+                                print(f"\nError removing image {file_name}: {e}")
 
-                try:
-                    results = predictor.classify_useless_images(folder_path=folder_path, ckpt_path=jacques_model_path)
-                    results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
-                except Exception as e:
-                    print(f"\n[ERROR] Classification error in {directory}: {e}")
-                    pass
-        else: # if there are no folders in DCIM or if DCIM doesn't exists, it means we are dealing with frames
-            print("\n[Frames processing]")
-            folder_path = os.path.join(session, 'PROCESSED_DATA/FRAMES/')
-            file_list = os.listdir(folder_path)
-
-            for file_name in file_list:
-                    if file_name.startswith('._'):
-                        file_path = os.path.join(folder_path, file_name)
-                        try:
-                            os.remove(file_path)
-                            print(f"\nRemoved unidentified image: {file_name}")
-                        except OSError as e:
-                            print(f"\nError removing image {file_name}: {e}")
-
-            try:
-                results = predictor.classify_useless_images(folder_path=folder_path, ckpt_path=jacques_model_path)
-                results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
-            except Exception as e:
-                print(f"\n[ERROR] Classification error in {directory}: {e}")
-                pass
+                    try:
+                        results = predictor.classify_useless_images(folder_path=folder_path, ckpt_path=jacques_model_path)
+                        results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
+                    except Exception as e:
+                        print(f"\n[ERROR] Classification error in {directory}: {e}")
+                        pass
+            else: # if there are no folders in DCIM
+                process_frames(session, directory, jacques_model_path)
+        else: # if DCIM doesn't exists, it means we are dealing with frames
+            process_frames(session, directory, jacques_model_path)
         
                     
 
@@ -502,9 +514,12 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
             if os.path.exists(image_folder_path):
                 # delete BEFORE and AFTER folders if they exists
                 delete_folders(image_folder_path)
+                # checking if there are "GOPRO" folders in DCIM
+                list_of_dir = get_subfolders(image_folder_path)
+                if len(list_of_dir) == 0:
+                    image_folder_path = os.path.join(session, 'PROCESSED_DATA/FRAMES/')
             else:
                 image_folder_path = os.path.join(session, 'PROCESSED_DATA/FRAMES/')
-
             
             for key, path in annot_path.items():
                 if len(path) != 0:
