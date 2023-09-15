@@ -261,6 +261,10 @@ def zip_folders(session, session_name, destination_folder):
     print(f"{session_name} zipped in {destination_folder} successfully.\n")
 
 def copy_and_zip_folder(src_folder, dest_folder, session_name):
+    '''
+    Function to temporarily copy the session folder and zip every folders in it plus subfolders of PROCESSED_DATA.
+    You will get as output a folder with .zip archives in it.
+    '''
     session_folder = os.path.join(dest_folder, session_name)
 
     # Copy the source folder to the destination folder
@@ -288,6 +292,7 @@ def copy_and_zip_folder(src_folder, dest_folder, session_name):
 
                     shutil.rmtree(subsubdir)
 
+            # zipping every subdir
             zip_filename = os.path.join(session_folder, f"{subdir_name}.zip")
             with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for root, dirs, files in os.walk(subdir):
@@ -300,6 +305,10 @@ def copy_and_zip_folder(src_folder, dest_folder, session_name):
             shutil.rmtree(subdir)
 
 def create_sessions_stats(session, session_name, jacques_model_path):
+    '''
+    Function that creates a .txt file with jacques classification statistics 
+    (total images, number of useful/useless images, percentage of useless images in relation of total images)
+    '''
     jacques_model = jacques_model_path.split("/")[-1]
     jacques_model = jacques_model.split(".")[0]
     input_file = os.path.join(session, f'LABEL/classification_{session_name}_jacques-v0.1.0_model-{jacques_model}.csv')
@@ -323,6 +332,9 @@ def create_sessions_stats(session, session_name, jacques_model_path):
     print(f"{session_name} statistics written to {output_file}.")
 
 def resize_images(source_folder, destination_folder, file_name):
+    '''
+    Function to resize images to thumbnail size.
+    '''
     destination_path = os.path.join(destination_folder, file_name)
     image_path = os.path.join(source_folder, file_name)
     image = Image.open(image_path)
@@ -339,7 +351,10 @@ def resize_images(source_folder, destination_folder, file_name):
 
     image.save(destination_path)
 
-def frames_thumbnails(session):
+def create_thumbnails_for_FRAMES(session):
+    '''
+    Create thumbnails for images in the folder /PROCESSED_DATA/FRAMES/
+    '''
     images_folder_path = os.path.join(session, 'PROCESSED_DATA/FRAMES/')
     file_list = os.listdir(images_folder_path)
     destination_folder = os.path.join(session, 'PROCESSED_DATA/THUMBNAILS/')
@@ -372,12 +387,15 @@ def create_thumbnails(session):
                     except Exception as e:
                         print(f"[ERROR] Failed to create thumbnail of {file_name}: {e}")
         else:
-            frames_thumbnails(session)        
+            create_thumbnails_for_FRAMES(session)        
     else:
-        frames_thumbnails(session)
+        create_thumbnails_for_FRAMES(session)
         
 
 def process_frames(session, directory, jacques_model_path):
+    '''
+    Function to launch jacques classification on images located in the folder /PROCESSED_DATA/FRAMES/
+    '''
     print("\n[Frames processing]")
     folder_path = os.path.join(session, 'PROCESSED_DATA/FRAMES/')
     file_list = os.listdir(folder_path)
@@ -399,9 +417,16 @@ def process_frames(session, directory, jacques_model_path):
         pass
 
 def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
+    '''
+    Function to create a pdf preview of the session. It will contains:
+    - a trajectory map
+    - 10 thumbnails of images selected randomly in the session
+    - a sneakpeek to the metadata file of the session
+    '''
+
+    # PDF creation
     pdf_file = os.path.join(pdf_preview_path, f"000_{session_name}_preview.pdf")
     c = canvas.Canvas(pdf_file, pagesize=letter)
-
 
     # Trajectory map
     c.setFont("Helvetica-Bold", 14)
@@ -414,7 +439,7 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     if os.path.exists(trajectory_map_path):
         trajectory_map = Image.open(trajectory_map_path)
         trajectory_map.thumbnail((500, 500))
-        resized_trajectory_map = os.path.join(pdf_preview_path, 'temp_trajec_map.jpeg')
+        resized_trajectory_map = os.path.join(pdf_preview_path, 'temp_trajec_map.jpeg') # saving resized trajectory map temporarily to add it to the PDF
         trajectory_map.save(resized_trajectory_map)
         c.drawImage(resized_trajectory_map, 20, 200)
         os.remove(resized_trajectory_map)
