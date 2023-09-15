@@ -169,6 +169,10 @@ It's the path to the folder where you want to create the zipped version of each 
 (ex:***'/my/path/to/zip_folder/'***) <br/>
 If you don't want to zip the sessions, do not fill in a path, leave the quotes empty.
 
+- **pdf_preview_path** <br/>
+This the path that you can provide to enable the creation of a pdf preview file for each session. <br/>
+(ex:***'/my/path/to/pdf_preview_folder/'***) 
+
 - **useless_images_path** <br/>
 It's the folder path where useless images will be moved. <br/>
 (ex: ***'/my/path/to/useless_images_folder/'***) <br/>
@@ -183,12 +187,6 @@ You can leave the brackets empty if you don't want to use any model.
 - **threshold_labels** <br/>
 There you can associate each model to it's labels and corresponding thresholds. <br/>
 (ex: ***{"multilabel": {"Acropore_branched": 0.56, "Acropore_digitised": 0.48,...},"grass_kelly": {"herbier": 0.592}}***)
-
-- **create_thumbnails** <br/>
-Boolean value: if **true**, a folder named THUMBNAILS will be created with resized images in it. <br/>
-If you are using the first directory architecture, this folder will be located at 'PROCESSED_DATA/THUMBNAILS/'. <br/>
-If you are using the second directory architecture, this folder will be located at the root of the session. <br/>
-If you want to skip thumbnails creation, write **false**.
 
 ---
 <div align="center">
