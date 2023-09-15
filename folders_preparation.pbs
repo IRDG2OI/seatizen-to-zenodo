@@ -1,10 +1,9 @@
 #/bin/bash
 #PBS -q omp
-#PBS -l select=1:ncpus=8:mem=10g
-#PBS -l walltime=07:00:00
-#PBS -J 1-84
+#PBS -l select=1:ncpus=2:mem=500mb
+#PBS -l walltime=00:03:00
 #PBS -m n
-#PBS -N mauritiusParallelProcessing
+#PBS -N pdfPreviewTestAldabra
 #PBS -S /bin/bash
 
 signal_handler() {
@@ -18,6 +17,6 @@ cd /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest
 conda activate /home/datawork-iot-nos/Seatizen/conda-env/jacques_cpu
 cd $PBS_O_WORKDIR
 
-python /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/folders_preparation.py --session-index $PBS_ARRAY_INDEX
+python /home3/datahome/aboyer/Documents/seatizen-to-zenodo/multilabelTest/folders_preparation.py
 conda deactivate
 qstat -f $PBS_JOBID

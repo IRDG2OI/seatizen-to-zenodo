@@ -18,6 +18,15 @@ from predict import annotation_model
 import json
 import zipfile
 from PIL import Image
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.platypus import Table
+from reportlab.lib import colors
+import random
+import pyreadr
+import warnings
+
+warnings.simplefilter(action = "ignore", category = RuntimeWarning)
 
 # get folder list that contains images (['DCIM/100GOPRO/', 'DCIM/101GOPRO/'])
 def get_subfolders(folder_path):
@@ -260,10 +269,25 @@ def copy_and_zip_folder(src_folder, dest_folder, session_name):
     # List subdirectories in the session folder
     subdirs = [os.path.join(session_folder, subdir) for subdir in os.listdir(session_folder) if os.path.isdir(os.path.join(session_folder, subdir))]
 
-    # Zip subfolders with specific names: DCIM, GPS, or PROCESSED_DATA
+    # Zip subfolders:
     for subdir in subdirs:
         subdir_name = os.path.basename(subdir)
-        if subdir_name in ["DCIM", "GPS", "PROCESSED_DATA"]:
+
+        if subdir_name in ["DCIM", "GPS", "METADATA", "PROCESSED_DATA", "SENSORS"]:
+            if subdir_name == "PROCESSED_DATA": # zipping folders in PROCESSED_DATA
+                subsubdirs = [os.path.join(subdir, subsubdir) for subsubdir in os.listdir(subdir) if os.path.isdir(os.path.join(subdir, subsubdir))]
+                for subsubdir in subsubdirs:
+                    subsubdir_name = os.path.basename(subsubdir)
+                    zip_filename = os.path.join(subdir, f"{subsubdir_name}.zip")
+                    with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
+                        for root, dirs, files in os.walk(subsubdir):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                arcname = os.path.relpath(file_path, subsubdir)
+                                zipf.write(file_path, arcname)
+
+                    shutil.rmtree(subsubdir)
+
             zip_filename = os.path.join(session_folder, f"{subdir_name}.zip")
             with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for root, dirs, files in os.walk(subdir):
@@ -274,18 +298,6 @@ def copy_and_zip_folder(src_folder, dest_folder, session_name):
 
             # Delete the original subdirectory and its contents
             shutil.rmtree(subdir)
-
-    # Zip the entire copied folder
-    zip_filename = os.path.join(dest_folder, f"{session_name}.zip")
-    with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(session_folder):
-            for file in files:
-                file_path = os.path.join(root, file)
-                arcname = os.path.relpath(file_path, session_folder)
-                zipf.write(file_path, arcname)
-
-    # Delete the copied folder
-    shutil.rmtree(session_folder)
 
 def create_sessions_stats(session, session_name, jacques_model_path):
     jacques_model = jacques_model_path.split("/")[-1]
@@ -386,6 +398,99 @@ def process_frames(session, directory, jacques_model_path):
         print(f"\n[ERROR] Classification error in {directory}: {e}")
         pass
 
+def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
+    pdf_file = os.path.join(pdf_preview_path, f"000_{session_name}_preview.pdf")
+    c = canvas.Canvas(pdf_file, pagesize=letter)
+
+
+    # Trajectory map
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(30, 730, "Session Summary")
+    c.setFont("Helvetica-Bold", 18)
+    c.setFillColor(colors.blue)
+    c.drawString(30, 705, session_name)
+
+    trajectory_map_path = os.path.join(session, f"GPS/{session_name}.jpeg")
+    if os.path.exists(trajectory_map_path):
+        trajectory_map = Image.open(trajectory_map_path)
+        trajectory_map.thumbnail((500, 500))
+        resized_trajectory_map = os.path.join(pdf_preview_path, 'temp_trajec_map.jpeg')
+        trajectory_map.save(resized_trajectory_map)
+        c.drawImage(resized_trajectory_map, 20, 200)
+        os.remove(resized_trajectory_map)
+    else:
+        print(f"No trajectory map found for session {session_name}")
+        c.drawString(30, 550, "[No trajectory map for this session]")
+        # TODO: Create trajectory map
+
+    c.setFont("Helvetica-Bold", 16)
+    c.setFillColor(colors.black)
+    c.drawString(30, 650, "Trajectory map")
+
+    # Thumbnails
+    selected_images = random.sample(list_of_images, min(10, len(list_of_images)))
+
+    x_coord = 30
+    y_coord = 150
+
+    for i, image in enumerate(selected_images):
+        if i % 5 == 0 and i != 0:
+            # Start a new row of images
+            x_coord = 30
+            y_coord -= 110
+
+        img = Image.open(image)
+        img.thumbnail((100, 100))
+
+        temp_image_path = os.path.join(pdf_preview_path, f'temp_{i}.jpg')
+        img.save(temp_image_path)
+
+        c.drawImage(temp_image_path, x_coord, y_coord)
+
+        os.remove(temp_image_path)
+
+        x_coord += 110
+
+    c.drawString(30, 240, "Images previews")
+    c.showPage()
+    c.setPageSize(landscape(letter))
+
+    # Metadata preview
+    metadata_file = os.path.join(session, f"METADATA/exif/All_Exif_metadata_{session_name}.RDS")
+    if os.path.exists(metadata_file):
+        rds_data = pyreadr.read_r(metadata_file)
+        df = list(rds_data.values())[0]
+    else:
+        metadata_file = os.path.join(session, f"METADATA/metadata.csv")
+        df = pd.read_csv(metadata_file)
+    
+    preview_df = df.head(20)
+
+    try:
+        preview_df = preview_df[["session_id", "ImageDescription", "FileName", "FileSize", "DateTimeOriginal", "ImageSize", "Model"]]
+    except KeyError:
+        preview_df = preview_df[["FileName", "FileSize", "SubSecDateTimeOriginal", "Composite:GPSLatitude", "Composite:GPSLongitude"]]
+    
+    table_data = [list(preview_df.columns)] + preview_df.values.tolist()
+    table = Table(table_data)
+
+    table.setStyle([
+        ('TEXTCOLOR', (0, 0), (-1, 0), (0, 0, 1)),  # Header row text color (blue)
+        ('FONTSIZE', (0, 1), (-1, -1), 8), # Font size of all cells
+        ('BACKGROUND', (0, 0), (-1, 0), (0.7, 0.7, 0.7)),  # Header row background color (gray)
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Center align all cells
+        ('INNERGRID', (0, 0), (-1, -1), 0.25, (0, 0, 0)),  # Inner gridlines
+        ('BOX', (0, 0), (-1, -1), 0.25, (0, 0, 0)),  # Cell borders
+    ])
+
+    table.wrapOn(c, 10, 20)
+    table.drawOn(c, 30, 100)
+
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(30, 530, "Metadata preview")
+    
+    c.save()
+
 
 
     
@@ -447,7 +552,7 @@ def classify_sessions(sessions, session_index, jacques_model_path):
 
     return results_of_all_sessions
 
-def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, thumbnails_creation):
+def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, pdf_preview_path):
     '''
     Function to restructure sessions folders to be "Zenodo ready"
     # Input:
@@ -467,8 +572,8 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
             ## path to annotation model. (ex: '/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/models/multilabel_with_sable.pth')
         - thresholds_labels:
             ## a dictionnary that contains labels names and their associated thresholds
-        - thumbnails_creation:
-            ## either or not to create thumbnails of the images
+        - pdf_preview_path:
+            ## either or not to create a preview pdf for the session
     # Output:
         - sessions folders "Zenodo ready"
     '''
@@ -572,7 +677,7 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
                     # merge all sessions final annotation
                     merge_all_final_csv(csv_annotation_path)
 
-            # zip session folder if true in config file
+            # zip session folder if path is not empty in config.json
             if len(zipped_sessions_path) != 0:
                 print(f"Zipping {session_name}...")
                 try:
@@ -581,9 +686,25 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
                 except Exception as e:
                     print(e)
 
-            if thumbnails_creation:
-                # creation of a folder with thumbnails of images located in DCIM or FRAMES
-                create_thumbnails(session)
+            if len(pdf_preview_path) != 0:
+                print(f"\nCreation of pdf preview for session {session_name}...")
+                list_of_dir = get_subfolders(image_folder_path)
+                list_of_images = []
+                if len(list_of_dir) != 0:
+                    for directory in list_of_dir:
+                        images_path = os.path.join(session, directory)
+                        images_files = [f for f in os.listdir(images_path) if f.endswith('.JPG') or f.endswith('.jpg') or f.endswith('.jpeg')]
+                        selected_images = random.sample(images_files, min(10, len(images_files)))
+                        selected_images_paths = [os.path.join(f'{images_path}/', image_name) for image_name in selected_images]
+                        list_of_images.append(selected_images_paths)
+                    list_of_images = [item for sublist in list_of_images for item in sublist]
+                    create_pdf_preview(pdf_preview_path, session, session_name, list_of_images)
+                else:
+                    list_of_images = [f for f in os.listdir(image_folder_path) if f.endswith('.JPG') or f.endswith('.jpg') or f.endswith('.jpeg')]
+                    list_of_images = [os.path.join(image_folder_path, image_name) for image_name in list_of_images]
+                    create_pdf_preview(pdf_preview_path, session, session_name, list_of_images)
+
+
     else:
         print("[ERROR] You must fill in a path to your sessions in the config.json file! Refer to the README.md file for more informations.")
             
@@ -611,16 +732,15 @@ def main():
     ## paths
     sessions = config["paths"]["sessions_path"]
     zipped_sessions_path = config["paths"]["zipped_sessions_path"]
+    pdf_preview_path = config["paths"]["pdf_preview_path"]
     dest_path = config["paths"]["useless_images_path"]
     annot_path = config["paths"]["annotation_csv_path"]
     ## threshold labels dictionnary
     threshold_labels = config["threshold_labels"]
-    ## thumbnails creation
-    thumbnails_creation = config["create_thumbnails"]
     
     if hasattr(args, "session_index"):
         session_index = args.session_index - 1
-        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, thumbnails_creation)
+        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, pdf_preview_path)
         execution_time_seconds = time.time() - start_time
         execution_time_minutes = "{:.2f}".format(execution_time_seconds / 60)
         print("\n========================================================")
@@ -628,7 +748,7 @@ def main():
         print(f"Total execution time: {execution_time_minutes} minutes")
     else: # execution on all sessions in the folder
         session_index = -1
-        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, thumbnails_creation)
+        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, pdf_preview_path)
         execution_time_seconds = time.time() - start_time
         execution_time_minutes = "{:.2f}".format(execution_time_seconds / 60)
         print("\n========================================================")
