@@ -392,7 +392,7 @@ def create_thumbnails(session):
         create_thumbnails_for_FRAMES(session)
         
 
-def process_frames(session, directory, jacques_model_path):
+def process_frames(session, results_of_all_sessions, directory, jacques_model_path):
     '''
     Function to launch jacques classification on images located in the folder /PROCESSED_DATA/FRAMES/
     '''
@@ -412,6 +412,7 @@ def process_frames(session, directory, jacques_model_path):
     try:
         results = predictor.classify_useless_images(folder_path=folder_path, ckpt_path=jacques_model_path)
         results_of_all_sessions = pd.concat([results_of_all_sessions, results], axis=0, ignore_index=True)
+        return results_of_all_sessions
     except Exception as e:
         print(f"\n[ERROR] Classification error in {directory}: {e}")
         pass
@@ -476,7 +477,7 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
 
         x_coord += 110
 
-    c.drawString(30, 240, "Images previews")
+    c.drawString(30, 300, "Images previews")
     c.showPage()
     c.setPageSize(landscape(letter))
 
@@ -509,7 +510,7 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     ])
 
     table.wrapOn(c, 10, 20)
-    table.drawOn(c, 30, 100)
+    table.drawOn(c, 30, 400)
 
     c.setFont("Helvetica-Bold", 16)
     c.drawString(30, 530, "Metadata preview")
@@ -569,9 +570,11 @@ def classify_sessions(sessions, session_index, jacques_model_path):
                         print(f"\n[ERROR] Classification error in {directory}: {e}")
                         pass
             else: # if there are no folders in DCIM
-                process_frames(session, directory, jacques_model_path)
+                dcim_path = f'{session}/PROCESSED_DATA/FRAMES/'
+                results_of_all_sessions = process_frames(session, results_of_all_sessions, dcim_path, jacques_model_path)
         else: # if DCIM doesn't exists, it means we are dealing with frames
-            process_frames(session, directory, jacques_model_path)
+            dcim_path = f'{session}/PROCESSED_DATA/FRAMES/'
+            results_of_all_sessions = process_frames(session, results_of_all_sessions, dcim_path, jacques_model_path)
         
                     
 

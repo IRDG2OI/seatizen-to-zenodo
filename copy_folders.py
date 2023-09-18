@@ -107,14 +107,14 @@ def create_thumbnails_from_folder(source_folder, destination_folder):
             print(f"[ERROR] Failed to create thumbnail of file {file}: {e}")
 
 def main():
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--session-index",
-    #                     action="store",
-    #                     type=int,
-    #                     default=1,
-    #                     help="Index of the session that is being processed. Default: 1")
-    # args = parser.parse_args()
-    # session_index = args.session_index - 1
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--session-index",
+                        action="store",
+                        type=int,
+                        default=1,
+                        help="Index of the session that is being processed. Default: 1")
+    args = parser.parse_args()
+    session_index = args.session_index - 1
     
     # source_folder = '/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated'
     # source_folder = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/useless_images_04092023/session_2017_11_04_kite_Le_Morne'
@@ -127,11 +127,16 @@ def main():
     # copy_folder_to_folder(source_folder, destination_folder, session_index)
     # create_thumbnails_from_folder(source_folder, destination_folder)
 
-    csv_path = '/home/datawork-iot-nos/Seatizen/data/useless_classification/ground_truth_annotations/useless_useful_df.csv'
-    image_folder = '/home/datawork-iot-nos/Seatizen/data/useless_classification/blurred_mauritius_seagrass'
-    destination_folder = '/home/datawork-iot-nos/Seatizen/data/herbier_classification/herbiers/entrainement_dataset/images'
+    # csv_path = '/home/datawork-iot-nos/Seatizen/data/useless_classification/ground_truth_annotations/useless_useful_df.csv'
+    # image_folder = '/home/datawork-iot-nos/Seatizen/data/useless_classification/blurred_mauritius_seagrass'
+    # destination_folder = '/home/datawork-iot-nos/Seatizen/data/herbier_classification/herbiers/entrainement_dataset/images'
 
-    copy_path_to_folder(csv_path, image_folder, destination_folder)
+    # copy_path_to_folder(csv_path, image_folder, destination_folder)
+
+    source_folder = ''
+    destination_folder = ''
+
+    copy_folder_to_folder(source_folder, destination_folder, session_index)
 
 
 if __name__ == '__main__':

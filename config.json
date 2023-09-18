@@ -5,7 +5,7 @@
             "multilabel": "",
             "grass_kelly": ""
         },
-        "sessions_path": [""],
+        "sessions_path": "",
         "zipped_sessions_path": "",
         "pdf_preview_path": "",
         "useless_images_path": "",
