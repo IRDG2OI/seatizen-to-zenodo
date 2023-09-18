@@ -170,7 +170,7 @@ It's the path to the folder where you want to create the zipped version of each 
 If you don't want to zip the sessions, do not fill in a path, leave the quotes empty.
 
 - **pdf_preview_path** <br/>
-This the path that you can provide to enable the creation of a pdf preview file for each session. <br/>
+This is the path that you can provide to enable the creation of a pdf preview file for each session. <br/>
 (ex:***'/my/path/to/pdf_preview_folder/'***) 
 
 - **useless_images_path** <br/>
