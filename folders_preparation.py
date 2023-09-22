@@ -25,6 +25,8 @@ from reportlab.lib import colors
 import random
 import pyreadr
 import warnings
+import folium
+from html2image import Html2Image
 
 warnings.simplefilter(action = "ignore", category = RuntimeWarning)
 
@@ -417,6 +419,30 @@ def process_frames(session, results_of_all_sessions, directory, jacques_model_pa
         print(f"\n[ERROR] Classification error in {directory}: {e}")
         pass
 
+def create_trajectory_map(metadata_path, pdf_preview_path):
+    # Trajectory map creation from the metadata file
+    df = pd.read_csv(metadata_path)
+    m = folium.Map(location=[df['decimalLatitude'].mean(), df['decimalLongitude'].mean()], zoomControl=False)
+    coordinates = list(zip(df['decimalLongitude'], df['decimalLatitude']))
+    folium.PolyLine(locations=coordinates, color='yellow', weight=5).add_to(m)
+    folium.TileLayer(
+        tiles='https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attr='Esri, Maxar, Earthstar Geographics, and the GIS User Community').add_to(m)
+    m.fit_bounds(coordinates)
+    map_html = os.path.join(pdf_preview_path, "map.html")
+    m.save(map_html)
+    
+    # Map conversion from HTML to PNG
+    hti = Html2Image()
+    hti.browser.flags = ['--virtual-time-budget=10000']
+    hti.screenshot(
+        html_file=map_html,
+        size=(700,700),
+        save_as="map.png"
+    )
+
+    os.remove(map_html) # removing html version of the map
+
 def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     '''
     Function to create a pdf preview of the session. It will contains:
@@ -429,29 +455,21 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     pdf_file = os.path.join(pdf_preview_path, f"000_{session_name}_preview.pdf")
     c = canvas.Canvas(pdf_file, pagesize=letter)
 
-    # Trajectory map
     c.setFont("Helvetica-Bold", 14)
     c.drawString(30, 730, "Session Summary")
     c.setFont("Helvetica-Bold", 18)
     c.setFillColor(colors.blue)
     c.drawString(30, 705, session_name)
 
-    trajectory_map_path = os.path.join(session, f"GPS/{session_name}.jpeg")
-    if os.path.exists(trajectory_map_path):
-        trajectory_map = Image.open(trajectory_map_path)
-        trajectory_map.thumbnail((500, 500))
-        resized_trajectory_map = os.path.join(pdf_preview_path, 'temp_trajec_map.jpeg') # saving resized trajectory map temporarily to add it to the PDF
-        trajectory_map.save(resized_trajectory_map)
-        c.drawImage(resized_trajectory_map, 20, 200)
-        os.remove(resized_trajectory_map)
-    else:
-        print(f"No trajectory map found for session {session_name}")
-        c.drawString(30, 550, "[No trajectory map for this session]")
-        # TODO: Create trajectory map
-
+    # Trajectory map
     c.setFont("Helvetica-Bold", 16)
     c.setFillColor(colors.black)
     c.drawString(30, 650, "Trajectory map")
+
+    metadata_path = os.path.join(session, f"GPS/photos_location_{session_name}.csv") # TEMPORARY 
+    create_trajectory_map(metadata_path, pdf_preview_path)
+    c.drawImage("map.png", 20, 200)
+    os.remove("map.png") # deleting map.png
 
     # Thumbnails
     selected_images = random.sample(list_of_images, min(10, len(list_of_images)))
