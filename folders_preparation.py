@@ -417,6 +417,21 @@ def process_frames(session, results_of_all_sessions, directory, jacques_model_pa
         print(f"\n[ERROR] Classification error in {directory}: {e}")
         pass
 
+def select_images_randomly(image_list):
+    total_images = len(image_list)
+    nb_sections = int(total_images // 200)
+    nb_images_per_section = int(total_images / nb_sections)
+    selected_images = []
+
+    for i in range(nb_sections):
+        section = image_list[:nb_images_per_section]
+        selected_images.append(random.sample(section, int(100/nb_sections)))
+        image_list = image_list[nb_images_per_section:]
+
+    selected_images = [item for sublist in selected_images for item in sublist]
+    selected_images.sort()
+    return selected_images
+
 def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     '''
     Function to create a pdf preview of the session. It will contains:
@@ -428,21 +443,23 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     # PDF creation
     pdf_file = os.path.join(pdf_preview_path, f"000_{session_name}_preview.pdf")
     c = canvas.Canvas(pdf_file, pagesize=letter)
+    page_width, page_height = letter
+    max_height = page_height - 100
 
-    # Trajectory map
     c.setFont("Helvetica-Bold", 14)
     c.drawString(30, 730, "Session Summary")
     c.setFont("Helvetica-Bold", 18)
     c.setFillColor(colors.blue)
     c.drawString(30, 705, session_name)
 
+    # Trajectory map
     trajectory_map_path = os.path.join(session, f"GPS/{session_name}.jpeg")
     if os.path.exists(trajectory_map_path):
         trajectory_map = Image.open(trajectory_map_path)
         trajectory_map.thumbnail((500, 500))
         resized_trajectory_map = os.path.join(pdf_preview_path, 'temp_trajec_map.jpeg') # saving resized trajectory map temporarily to add it to the PDF
         trajectory_map.save(resized_trajectory_map)
-        c.drawImage(resized_trajectory_map, 20, 200)
+        c.drawImage(resized_trajectory_map, 20, 150)
         os.remove(resized_trajectory_map)
     else:
         print(f"No trajectory map found for session {session_name}")
@@ -454,10 +471,14 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     c.drawString(30, 650, "Trajectory map")
 
     # Thumbnails
-    selected_images = random.sample(list_of_images, min(10, len(list_of_images)))
+    c.showPage()
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(30, 730, "Images previews")
+
+    selected_images = select_images_randomly(list_of_images)
 
     x_coord = 30
-    y_coord = 150
+    y_coord = max_height
 
     for i, image in enumerate(selected_images):
         if i % 5 == 0 and i != 0:
@@ -468,16 +489,21 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
         img = Image.open(image)
         img.thumbnail((100, 100))
 
+        img_width, img_height = img.size
+
         temp_image_path = os.path.join(pdf_preview_path, f'temp_{i}.jpg')
         img.save(temp_image_path)
 
-        c.drawImage(temp_image_path, x_coord, y_coord)
+        if y_coord - img_height < 50:
+            c.showPage()
+            y_coord = max_height
+
+        c.drawImage(temp_image_path, x_coord, y_coord - img_height)
 
         os.remove(temp_image_path)
 
         x_coord += 110
 
-    c.drawString(30, 300, "Images previews")
     c.showPage()
     c.setPageSize(landscape(letter))
 
@@ -510,7 +536,7 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     ])
 
     table.wrapOn(c, 10, 20)
-    table.drawOn(c, 30, 400)
+    table.drawOn(c, 30, 100)
 
     c.setFont("Helvetica-Bold", 16)
     c.drawString(30, 530, "Metadata preview")
@@ -722,13 +748,14 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
                     for directory in list_of_dir:
                         images_path = os.path.join(session, directory)
                         images_files = [f for f in os.listdir(images_path) if f.endswith('.JPG') or f.endswith('.jpg') or f.endswith('.jpeg')]
-                        selected_images = random.sample(images_files, min(10, len(images_files)))
-                        selected_images_paths = [os.path.join(f'{images_path}/', image_name) for image_name in selected_images]
-                        list_of_images.append(selected_images_paths)
+                        images_files.sort()
+                        selected_images = [os.path.join(f'{images_path}/', image_name) for image_name in images_files]
+                        list_of_images.append(selected_images)
                     list_of_images = [item for sublist in list_of_images for item in sublist]
                     create_pdf_preview(pdf_preview_path, session, session_name, list_of_images)
                 else:
                     list_of_images = [f for f in os.listdir(image_folder_path) if f.endswith('.JPG') or f.endswith('.jpg') or f.endswith('.jpeg')]
+                    list_of_images.sort()
                     list_of_images = [os.path.join(image_folder_path, image_name) for image_name in list_of_images]
                     create_pdf_preview(pdf_preview_path, session, session_name, list_of_images)
 
