@@ -8,6 +8,7 @@
         "sessions_path": "",
         "zipped_sessions_path": "",
         "pdf_preview_path": "",
+        "global_data_path": "",
         "useless_images_path": "",
         "annotation_csv_path": {
             "multilabel": "",
@@ -43,5 +44,7 @@
         "grass_kelly": {
             "herbier": 0.592
         }
-    }
+    },
+
+    "delete_before_after":false
 }
