@@ -22,8 +22,6 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import Table
 from reportlab.lib import colors
-import random
-import pyreadr
 import warnings
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
@@ -272,7 +270,7 @@ def copy_and_zip_folder(src_folder, dest_folder, session_name):
     session_folder = os.path.join(dest_folder, session_name)
 
     # Copy the source folder to the destination folder
-    shutil.copytree(src_folder, session_folder)
+    shutil.copytree(src_folder, session_folder, dirs_exist_ok=True)
 
     # List subdirectories in the session folder
     subdirs = [os.path.join(session_folder, subdir) for subdir in os.listdir(session_folder) if os.path.isdir(os.path.join(session_folder, subdir))]
@@ -281,7 +279,7 @@ def copy_and_zip_folder(src_folder, dest_folder, session_name):
     for subdir in subdirs:
         subdir_name = os.path.basename(subdir)
 
-        if subdir_name in ["DCIM", "DCIM_THUMBNAILS", "GPS", "METADATA", "PROCESSED_DATA", "SENSORS"]:
+        if subdir_name in ["DCIM", "DCIM_THUMBNAILS", "GPS", "LABEL", "METADATA", "PROCESSED_DATA", "SENSORS"]:
             if subdir_name == "PROCESSED_DATA": # zipping folders in PROCESSED_DATA
                 subsubdirs = [os.path.join(subdir, subsubdir) for subsubdir in os.listdir(subdir) if os.path.isdir(os.path.join(subdir, subsubdir))]
                 for subsubdir in subsubdirs:
@@ -307,6 +305,27 @@ def copy_and_zip_folder(src_folder, dest_folder, session_name):
 
             # Delete the original subdirectory and its contents
             shutil.rmtree(subdir)
+
+    # Removing unwanted folders and files in the sesssion folder
+    for item in os.listdir(session_folder):
+        item_path = os.path.join(session_folder, item)
+        
+        # Check if the item is a file and has a .zip extension
+        if os.path.isfile(item_path) and item.lower().endswith('.zip'):
+            # Keep the zip file
+            continue
+        # If the item is a subfolder, remove it recursively
+        elif os.path.isdir(item_path):
+            try:
+                shutil.rmtree(item_path)
+            except Exception as e:
+                print(f"Error deleting folder {item_path}: {e}")
+        # If the item is a non-zip file, remove it
+        else:
+            try:
+                os.remove(item_path)
+            except Exception as e:
+                print(f"Error deleting file {item_path}: {e}")
 
 def create_sessions_stats(session, session_name, jacques_model_path):
     '''
@@ -422,30 +441,62 @@ def process_frames(session, results_of_all_sessions, directory, jacques_model_pa
         pass
 
 def evenly_select_images_on_interval(image_list):
+    '''
+    Function to select images evenly throughout the list.
+    '''
     total_images = len(image_list)
     index_list = np.linspace(0, total_images, 100, dtype=int, endpoint=False)
     selected_images = [image_list[i] for i in index_list]
     return selected_images
 
-def create_trajectory_map(metadata_path):
+def create_trajectory_map(metadata_path, global_trajectories):
+    '''
+    Function to create the trajectory maps.
+    metadata_path is the path to the metadata.csv file or the metadata_image.csv file.
+    global_trajectories is a boolean to indicate if you are doing the global trajectory map or not.
+    '''
     df = pd.read_csv(metadata_path)
-        
-    fig = plt.figure(figsize=(2,2), dpi=300)
-    ax = fig.add_subplot(projection=ccrs.PlateCarree())
-    ax.set_extent([df.GPSLongitude.min()-0.005, df.GPSLongitude.max()+0.005, df.GPSLatitude.min()-0.001,df.GPSLatitude.max()+0.001])
 
     imagery = GoogleTiles(url='https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
-    ax.add_image(imagery, 19)
 
-    ax.plot(df.GPSLongitude, df.GPSLatitude, color='yellow', linewidth=1)
-    fig.savefig("map.png", bbox_inches='tight',pad_inches=0, dpi=300)
+    if not global_trajectories:
+        fig = plt.figure(figsize=(2,2), dpi=300)
+        ax = fig.add_subplot(projection=ccrs.PlateCarree())
+        map_path = "map.png"
+        adb_lat_range = [-10, -7] # latitude range of aldabra
+        if df['GPSLatitude'].between(adb_lat_range[0], adb_lat_range[1]).any():
+            ax.set_extent([df.GPSLongitude.min()-0.005, df.GPSLongitude.max()+0.005, df.GPSLatitude.min()-0.005,df.GPSLatitude.max()+0.005])
+            ax.add_image(imagery, 17) # aldabra position so we adjust the zoom level
+            ax.plot(df.GPSLongitude, df.GPSLatitude, color='yellow', linewidth=0.1)
+        else:
+            ax.set_extent([df.GPSLongitude.min()-0.005, df.GPSLongitude.max()+0.005, df.GPSLatitude.min()-0.001,df.GPSLatitude.max()+0.001])
+            ax.add_image(imagery, 19) # other positions
+            ax.plot(df.GPSLongitude, df.GPSLatitude, color='yellow', linewidth=0.3)
+    else: # global trajectories map
+        df['GPSDateTime'] = pd.to_datetime(df['GPSDateTime'])
+        df['SubSecDateTimeOriginal'] = pd.to_datetime(df['SubSecDateTimeOriginal'], format="%Y:%m:%d %H:%M:%S.%f")
+        df['Date'] = df['GPSDateTime'].fillna(df['SubSecDateTimeOriginal'])
+        df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
+
+        fig = plt.figure(figsize=(10,10), dpi=600)
+        ax = fig.add_subplot(projection=ccrs.PlateCarree())
+        ax.set_extent([df.GPSLongitude.min()-1, df.GPSLongitude.max()+1, df.GPSLatitude.min()-1,df.GPSLatitude.max()+1])
+        ax.add_image(imagery, 10)
+
+        for date in df["Date"].unique():
+            subset = df[df['Date'] == date]
+            ax.plot(subset.GPSLongitude, subset.GPSLatitude, color='yellow', linewidth=5)
+
+        map_path = os.path.join(os.path.dirname(metadata_path), "global_map.png")
+
+    fig.savefig(map_path, bbox_inches='tight',pad_inches=0, dpi=600)
     print("Trajectory map created!")
 
 def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     '''
     Function to create a pdf preview of the session. It will contains:
     - a trajectory map
-    - 10 thumbnails of images selected randomly in the session
+    - 100 thumbnails of images selected evenly throughout the session
     - a sneakpeek to the metadata file of the session
     '''
 
@@ -465,10 +516,9 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     metadata_path = os.path.join(session, "METADATA/metadata.csv")
 
     if not os.path.exists(metadata_path):
-        # metadata_path = os.path.join(session, f"METADATA/exif/All_Exif_metadata_{session_name}.RDS")
         print("\nMetadata file not found for trajectory map creation!")
 
-    create_trajectory_map(metadata_path)
+    create_trajectory_map(metadata_path, False)
     print("Adding map to the PDF...")
     c.drawImage("map.png", 20, 300)
     os.remove("map.png") # deleting map.png
@@ -477,6 +527,7 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     c.setFillColor(colors.black)
     c.drawString(30, 650, "Trajectory map")
     print("Map added!")
+    
     # Thumbnails
     c.showPage()
     c.setFont("Helvetica-Bold", 16)
@@ -521,9 +572,14 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     print("Data loaded!")
     preview_df = df.head(20)
     print("Preview dataframe created!")
-    first_columns = preview_df.iloc[:,:6]
+
+    try:
+        preview_df = preview_df[["FileName", "SubSecDateTimeOriginal", "GPSLatitude", "GPSLongitude", "FileSize", "ImageHeight", "ImageWidth"]]
+    except KeyError:
+        preview_df = preview_df[["photo_identifier", "GPSDateTime", "GPSLatitude", "GPSLongitude", "FileSize", "ImageHeight", "ImageWidth"]]
+
     print("Creation of the PDF table...")
-    table_data = [list(first_columns.columns)] + first_columns.values.tolist()
+    table_data = [list(preview_df.columns)] + preview_df.values.tolist()
     table = Table(table_data)
 
     table.setStyle([
@@ -544,6 +600,43 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     c.save()
     print("PDF created!")
 
+def add_useful_column(df, classification_path):
+    '''
+    Function to add the "Useful" column in the metadata_image.csv file.
+    '''
+    files = os.listdir(classification_path)
+    for file in files:
+        if file.startswith("classification"):
+            file_path = os.path.join(classification_path, file)
+            classification_df = pd.read_csv(file_path)
+            merged_df = df.merge(classification_df, left_on="FileName", right_on="image", how="left")
+            merged_df["Useful"] = merged_df["class"].apply(lambda x: 1 if x == "useful" else 0)
+            merged_df.drop(["image", "class", "dir"], axis=1, inplace=True)
+    return merged_df
+
+def create_global_stats(metadata_image_path):
+    '''
+    Function to create a .txt file that contains statistics about the metadata_image.csv file.
+    '''
+    df = pd.read_csv(metadata_image_path)
+    total_images = len(df)
+
+    if "Useful" in df.columns:
+        output_file = os.path.join(os.path.dirname(metadata_image_path), "metadata_image_stats.txt")
+
+        useful_images = len(df[df['Useful'] == 1])
+        useless_images = len(df[df['Useful'] == 0])
+        percentage_useless = (useless_images / total_images) * 100
+        
+        with open(output_file, 'w') as f:
+            f.write(f"Total images: {total_images}\n")
+            f.write(f"Useful images: {useful_images}\n")
+            f.write(f"Useless images: {useless_images}\n")
+            f.write(f"Percentage of useless images: {percentage_useless:.2f}%\n")
+    else:
+        with open(output_file, 'w') as f:
+            f.write(f"Total images: {total_images}\n")
+
 def create_metadata_image_csv(sessions, global_data_path):
     list_of_sessions = get_sessions_list(sessions, -1)
     dfs = []
@@ -554,17 +647,23 @@ def create_metadata_image_csv(sessions, global_data_path):
         session_metadata_path = os.path.join(session, "METADATA/metadata.csv")
         if os.path.exists(session_metadata_path):
             df = pd.read_csv(session_metadata_path)
+
+            # Adding "Useful" column if there are jacques classification informations
+            classification_path = os.path.join(session, "LABEL/")
+            if os.path.exists(classification_path):
+                df = add_useful_column(df, classification_path)
+            else:
+                classification_path = os.path.join(session, "PROCESSED_DATA/IA/")
+                df = add_useful_column(df, classification_path)
+
             if not df["FileName"][0].startswith(session_name): # checking if original filename is not already in the correct format
                 newFileNameList.append([session_name +"_"+ filename for filename in df["FileName"]])
             else:
                 newFileNameList.append(df["FileName"].tolist())
+
             dfs.append(df)
         else:
             print("\n[ERROR] Metadata file not found!")
-            # session_metadata_path = os.path.join(session, "METADATA/metadata_enriched.RDS")
-            # rds_data = pyreadr.read_r(session_metadata_path)
-            # df = list(rds_data.values())[0]
-            # dfs.append(df)
 
 
     if len(dfs) != 0:
@@ -578,7 +677,7 @@ def create_metadata_image_csv(sessions, global_data_path):
         fileNameList = [item for sublist in newFileNameList for item in sublist]
         merged_df["FileName"] = fileNameList
 
-        cols_to_keep = ["OriginalFileName", "FileName", "GPSLatitude", "GPSLongitude", "ApertureValue", "Compression", "Contrast", "CreateDate", "DateCreated", "DateTimeDigitized", "DateTimeOriginal", 
+        cols_to_keep = ["OriginalFileName", "FileName", "GPSLatitude", "GPSLongitude", "Useful", "ApertureValue", "Compression", "Contrast", "CreateDate", "DateCreated", "DateTimeDigitized", "DateTimeOriginal", 
                         "DigitalZoomRatio", "ExifImageHeight", "ExifImageWidth", "ExifToolVersion", "ExifVersion", "ExposureCompensation", "ExposureMode", "ExposureProgram", "FileSize", "FileType",  
                         "FileTypeExtension", "FNumber", "FocalLength", "FocalLength35efl", "FocalLengthIn35mmFormat", "FOV", "GPSAltitude", "GPSAltitudeRef", "GPSDateTime", "GPSDate", "GPSTime", "GPSLatitudeRef", 
                         "GPSLongitudeRef", "GPSMapDatum", "GPSPosition", "GPSTimeStamp", "GPSRoll", "GPSPitch", "GPSTrack", "ImageHeight", "ImageWidth", "LightValue", "Make", "MaxApertureValue", 
@@ -653,7 +752,7 @@ def classify_sessions(sessions, session_index, jacques_model_path):
 
     return results_of_all_sessions
 
-def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, pdf_preview_path, global_data_path, delete_before_after):
+def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, pdf_preview, global_data_path, delete_before_after, global_trajectory_map):
     '''
     Function to restructure sessions folders to be "Zenodo ready"
     # Input:
@@ -673,12 +772,14 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
             ## path to annotation model. (ex: '/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/models/multilabel_with_sable.pth')
         - thresholds_labels:
             ## a dictionnary that contains labels names and their associated thresholds
-        - pdf_preview_path:
-            ## path where a pdf preview will be created for each session
+        - pdf_preview:
+            ## boolean value to indicate if a pdf preview will be created for each session
         - global_data_path:
             ## path where metadata_image.csv will be created
         - delete_before_after:
             ## boolean value to indicate if the user want to delete before and after folders if they exists
+        - global_trajectory_map:
+            ## boolean value to indicate if the user want to create the global trajectory map or not
     # Output:
         - sessions folders "Zenodo ready"
     '''
@@ -690,6 +791,18 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
             results_of_all_sessions = pd.DataFrame(data={}) # empty dataframe
         
         list_of_sessions = get_sessions_list(sessions, session_index)
+
+        # global data
+        if len(global_data_path) != 0:
+            metadata_image_path = os.path.join(global_data_path, "metadata_image.csv")
+            if not global_trajectory_map:
+                print("\nCreation of metadata_image.csv from all metadata files...")
+                create_metadata_image_csv(sessions, global_data_path)
+                if os.path.exists(metadata_image_path):
+                    create_global_stats(metadata_image_path) # creation of a txt file with statistics about the metadata_image.csv
+            else:
+                if os.path.exists(metadata_image_path):
+                    create_trajectory_map(metadata_image_path, True)
         
         # operations on each session
         for session in list_of_sessions:
@@ -784,39 +897,36 @@ def restructure_sessions(sessions, session_index, zipped_sessions_path, dest_pat
                     # merge all sessions final annotation
                     merge_all_final_csv(csv_annotation_path)
 
-            # zip session folder if path is not empty in config.json
             if len(zipped_sessions_path) != 0:
-                print(f"Zipping {session_name}...")
-                try:
-                    create_thumbnails(session)
-                    copy_and_zip_folder(session, zipped_sessions_path, session_name)
-                    print(f"\n{session_name} successfully zipped.")
-                except Exception as e:
-                    print(e)
-
-            if len(pdf_preview_path) != 0:
-                print(f"\nCreation of pdf preview for session {session_name}...")
-                list_of_dir = get_subfolders(image_folder_path)
-                list_of_images = []
-                if len(list_of_dir) != 0:
-                    for directory in list_of_dir:
-                        images_path = os.path.join(session, directory)
-                        images_files = [f for f in os.listdir(images_path) if f.endswith('.JPG') or f.endswith('.jpg') or f.endswith('.jpeg')]
-                        images_files.sort()
-                        selected_images = [os.path.join(f'{images_path}/', image_name) for image_name in images_files]
-                        list_of_images.append(selected_images)
-                    list_of_images = [item for sublist in list_of_images for item in sublist]
-                    create_pdf_preview(pdf_preview_path, session, session_name, list_of_images)
-                else:
-                    list_of_images = [f for f in os.listdir(image_folder_path) if f.endswith('.JPG') or f.endswith('.jpg') or f.endswith('.jpeg')]
-                    list_of_images.sort()
-                    list_of_images = [os.path.join(image_folder_path, image_name) for image_name in list_of_images]
-                    create_pdf_preview(pdf_preview_path, session, session_name, list_of_images)
-
-            if len(global_data_path) != 0:
-                print("\nCreation of metadata_image.csv from all metadata files...")
-                create_metadata_image_csv(sessions, global_data_path)
-
+                if not pdf_preview: # zip sessions folders
+                    print(f"Zipping {session_name}...")
+                    try:
+                        create_thumbnails(session)
+                        copy_and_zip_folder(session, zipped_sessions_path, session_name)
+                        print(f"\n{session_name} successfully zipped.")
+                        shutil.rmtree(os.path.join(session, "DCIM_THUMBNAILS"))
+                    except Exception as e:
+                        print(e)
+                else: # create pdf previews in the folders where the zip of each session are
+                    print(f"\nCreation of pdf preview for session {session_name}...")
+                    pdf_preview_path = os.path.join(zipped_sessions_path, session_name)
+                    os.makedirs(pdf_preview_path, exist_ok=True)
+                    list_of_dir = get_subfolders(image_folder_path)
+                    list_of_images = []
+                    if len(list_of_dir) != 0:
+                        for directory in list_of_dir:
+                            images_path = os.path.join(session, directory)
+                            images_files = [f for f in os.listdir(images_path) if f.endswith('.JPG') or f.endswith('.jpg') or f.endswith('.jpeg')]
+                            images_files.sort()
+                            selected_images = [os.path.join(f'{images_path}/', image_name) for image_name in images_files]
+                            list_of_images.append(selected_images)
+                        list_of_images = [item for sublist in list_of_images for item in sublist]
+                        create_pdf_preview(pdf_preview_path, session, session_name, list_of_images)
+                    else:
+                        list_of_images = [f for f in os.listdir(image_folder_path) if f.endswith('.JPG') or f.endswith('.jpg') or f.endswith('.jpeg')]
+                        list_of_images.sort()
+                        list_of_images = [os.path.join(image_folder_path, image_name) for image_name in list_of_images]
+                        create_pdf_preview(pdf_preview_path, session, session_name, list_of_images)
 
     else:
         print("[ERROR] You must fill in a path to your sessions in the config.json file! Refer to the README.md file for more informations.")
@@ -845,7 +955,6 @@ def main():
     ## paths
     sessions = config["paths"]["sessions_path"]
     zipped_sessions_path = config["paths"]["zipped_sessions_path"]
-    pdf_preview_path = config["paths"]["pdf_preview_path"]
     global_data_path = config["paths"]["global_data_path"]
     dest_path = config["paths"]["useless_images_path"]
     annot_path = config["paths"]["annotation_csv_path"]
@@ -853,10 +962,12 @@ def main():
     threshold_labels = config["threshold_labels"]
     ## booleans
     delete_before_after = config["delete_before_after"]
+    global_trajectory_map = config["global_trajectory_map"]
+    pdf_preview = config["pdf_preview"]
 
     if hasattr(args, "session_index"):
         session_index = args.session_index - 1
-        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, pdf_preview_path, global_data_path, delete_before_after)
+        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, pdf_preview, global_data_path, delete_before_after, global_trajectory_map)
         execution_time_seconds = time.time() - start_time
         execution_time_minutes = "{:.2f}".format(execution_time_seconds / 60)
         print("\n========================================================")
@@ -864,7 +975,7 @@ def main():
         print(f"Total execution time: {execution_time_minutes} minutes")
     else: # execution on all sessions in the folder
         session_index = -1
-        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, pdf_preview_path, global_data_path, delete_before_after)
+        restructure_sessions(sessions, session_index, zipped_sessions_path, dest_path, annot_path, jacques_model_path, annotation_model_path, threshold_labels, pdf_preview, global_data_path, delete_before_after, global_trajectory_map)
         execution_time_seconds = time.time() - start_time
         execution_time_minutes = "{:.2f}".format(execution_time_seconds / 60)
         print("\n========================================================")
