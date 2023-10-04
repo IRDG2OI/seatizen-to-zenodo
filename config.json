@@ -7,7 +7,6 @@
         },
         "sessions_path": "",
         "zipped_sessions_path": "",
-        "pdf_preview_path": "",
         "global_data_path": "",
         "useless_images_path": "",
         "annotation_csv_path": {
@@ -46,5 +45,7 @@
         }
     },
 
-    "delete_before_after":false
+    "delete_before_after":false,
+    "global_trajectory_map":false,
+    "pdf_preview":false
 }
