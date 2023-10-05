@@ -463,10 +463,10 @@ def create_trajectory_map(metadata_path, global_trajectories):
         fig = plt.figure(figsize=(2,2), dpi=300)
         ax = fig.add_subplot(projection=ccrs.PlateCarree())
         map_path = "map.png"
-        adb_lat_range = [-10, -7] # latitude range of aldabra
+        adb_lat_range = [-13, -7] # latitude range of aldabra and mayotte
         if df['GPSLatitude'].between(adb_lat_range[0], adb_lat_range[1]).any():
             ax.set_extent([df.GPSLongitude.min()-0.005, df.GPSLongitude.max()+0.005, df.GPSLatitude.min()-0.005,df.GPSLatitude.max()+0.005])
-            ax.add_image(imagery, 17) # aldabra position so we adjust the zoom level
+            ax.add_image(imagery, 17) # aldabra/mayotte position so we adjust the zoom level
             ax.plot(df.GPSLongitude, df.GPSLatitude, color='yellow', linewidth=0.1)
         else:
             ax.set_extent([df.GPSLongitude.min()-0.005, df.GPSLongitude.max()+0.005, df.GPSLatitude.min()-0.001,df.GPSLatitude.max()+0.001])
@@ -487,7 +487,7 @@ def create_trajectory_map(metadata_path, global_trajectories):
             subset = df[df['Date'] == date]
             ax.plot(subset.GPSLongitude, subset.GPSLatitude, color='yellow', linewidth=5)
 
-        map_path = os.path.join(os.path.dirname(metadata_path), "global_map.png")
+        map_path = os.path.join(os.path.dirname(metadata_path), "00_global_map.png")
 
     fig.savefig(map_path, bbox_inches='tight',pad_inches=0, dpi=600)
     print("Trajectory map created!")
@@ -527,7 +527,7 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     c.setFillColor(colors.black)
     c.drawString(30, 650, "Trajectory map")
     print("Map added!")
-    
+
     # Thumbnails
     c.showPage()
     c.setFont("Helvetica-Bold", 16)
@@ -654,7 +654,8 @@ def create_metadata_image_csv(sessions, global_data_path):
                 df = add_useful_column(df, classification_path)
             else:
                 classification_path = os.path.join(session, "PROCESSED_DATA/IA/")
-                df = add_useful_column(df, classification_path)
+                if os.path.exists(classification_path):
+                    df = add_useful_column(df, classification_path)
 
             if not df["FileName"][0].startswith(session_name): # checking if original filename is not already in the correct format
                 newFileNameList.append([session_name +"_"+ filename for filename in df["FileName"]])

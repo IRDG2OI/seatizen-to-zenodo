@@ -77,11 +77,11 @@ def rename_images(filtered_metadata_csv, image_folder):
 def download_from_filtered_metadata_csv(filtered_metadata_csv, download_dir, filtered_img_dir):
     df = pd.read_csv(filtered_metadata_csv)
     try:
-        sessions_DOI_IDS = df["session_DOI"].unique().tolist()
+        sessions_DOI_IDS = df["Session_doi"].unique().tolist()
     except KeyError:
-        print("session_DOI column not found in the provided CSV file.")
+        print("Session_doi column not found in the provided CSV file.")
     for id in sessions_DOI_IDS:
-        # Zenodo deposit URL (replace with your deposit URL)
+        # Zenodo deposit URL
         deposit_url = f"https://sandbox.zenodo.org/record/{id}"
 
         # Zenodo API endpoint for the deposit metadata

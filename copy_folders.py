@@ -6,6 +6,11 @@ Created on Tue Aug  1 14:48:10 2023
 @author: g2oi
 """
 
+'''
+Use this script in copy_folders.pbs to parallelize the copy of the sessions you want to process.
+Fill source_folder and destination_folder in the main() function with the path to the original sessions and the path to where you want to copy them. 
+'''
+
 import os
 import shutil
 import argparse
@@ -13,7 +18,6 @@ import time
 from datetime import datetime
 from folders_preparation import list_directories
 import pandas as pd
-from PIL import Image
 
 def copy_folder_to_folder(source_folder, destination_folder, session_index):
     '''
@@ -65,46 +69,10 @@ def copy_path_to_folder(csv_path, image_folder, destination_folder):
         destination_path = os.path.join(destination_folder, image_name)
 
         try:
-            # image = Image.open(image_path)
-            # # Resize the images where shortest side is 256 pixels, keeping aspect ratio. 
-            # if image.width > image.height: 
-            #     factor = image.width/image.height
-            #     image = image.resize(size=(int(round(factor*256,0)),256))
-            # else:
-            #     factor = image.height/image.width
-            #     image = image.resize(size=(256, int(round(factor*256,0))))
-            # # Crop out the center 224x224 portion of the image.
-
-            # image = image.crop(box=((image.width/2)-112, (image.height/2)-112, (image.width/2)+112, (image.height/2)+112))
-
-            # image.save(destination_path)
             shutil.copy(image_path, destination_path)
             print(f"Copied {image_path} to {destination_path}")
         except Exception as e:
             print(f"Failed to copy {image_path}: {e}")
-
-def create_thumbnails_from_folder(source_folder, destination_folder):
-    file_list = os.listdir(source_folder)
-    os.makedirs(destination_folder, exist_ok=True)
-    for file in file_list:
-        image_path = os.path.join(source_folder, file)
-        destination_path = os.path.join(destination_folder, file)
-        try:
-            image = Image.open(image_path)
-            # Resize the images where shortest side is 256 pixels, keeping aspect ratio. 
-            if image.width > image.height: 
-                factor = image.width/image.height
-                image = image.resize(size=(int(round(factor*256,0)),256))
-            else:
-                factor = image.height/image.width
-                image = image.resize(size=(256, int(round(factor*256,0))))
-            # Crop out the center 224x224 portion of the image.
-
-            image = image.crop(box=((image.width/2)-112, (image.height/2)-112, (image.width/2)+112, (image.height/2)+112))
-
-            image.save(destination_path)
-        except Exception as e:
-            print(f"[ERROR] Failed to create thumbnail of file {file}: {e}")
 
 def main():
     parser = argparse.ArgumentParser()
@@ -115,26 +83,9 @@ def main():
                         help="Index of the session that is being processed. Default: 1")
     args = parser.parse_args()
     session_index = args.session_index - 1
-    
-    # source_folder = '/home/datawork-iot-nos/Seatizen/mauritius_use_case/Mauritius/162.38.140.205/Deep_mapping/backup/validated'
-    # source_folder = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/useless_images_04092023/session_2017_11_04_kite_Le_Morne'
-    
-    # destination_folder = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/zipped_sessions'
-    # destination_folder = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/useless_images'
-    # destination_folder = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_unzipped_31082023'
-    # destination_folder = '/home/datawork-iot-nos/Seatizen/seatizen_to_zenodo/mauritius_sessions_processing_output/useless_images_04092023/session_2017_11_04_kite_Le_Morne_thumbnails'
-    
-    # copy_folder_to_folder(source_folder, destination_folder, session_index)
-    # create_thumbnails_from_folder(source_folder, destination_folder)
 
-    # csv_path = '/home/datawork-iot-nos/Seatizen/data/useless_classification/ground_truth_annotations/useless_useful_df.csv'
-    # image_folder = '/home/datawork-iot-nos/Seatizen/data/useless_classification/blurred_mauritius_seagrass'
-    # destination_folder = '/home/datawork-iot-nos/Seatizen/data/herbier_classification/herbiers/entrainement_dataset/images'
-
-    # copy_path_to_folder(csv_path, image_folder, destination_folder)
-
-    source_folder = ''
-    destination_folder = ''
+    source_folder = '' # original sessions
+    destination_folder = '' # copy destination
 
     copy_folder_to_folder(source_folder, destination_folder, session_index)
 
