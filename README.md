@@ -26,7 +26,7 @@ With the **folders_preparation.py** script you can:
 Depending on what you want to do, you may decide to carry out one step rather than another. <br/>
 The **config.json** file will allow you to precisely do that. See the end of this README for more informations on the configuration file.
 
-This script can only be used on sessions folders that respect one of the architectures below:
+:warning: This script can only be used on sessions folders that respect one of the architectures below:
 ```
 1st architecture
 
@@ -58,7 +58,7 @@ YYYYMMDD_countrycode-optionalplace_device_nb
 
 ### Installation
 The installation can either be done locally or on datarmor. <br/>
-:bulb: Datarmor is Ifremer's supercomputer on which you can parallelize code exceution for a large amount of data.
+:bulb: Datarmor is Ifremer's supercomputer on which you can parallelize code execution for a large amount of data.
 #### Local
 1. Clone the git repository
 ```
@@ -115,6 +115,7 @@ python folders_preparation.py --session-index 1
 This will process the first session of the folder.
 
 #### Datarmor
+:man_student: You can find a use case example here: [seatizen-to-zenodo-example](https://github.com/alexandreBoy/seatizen-to-zenodo-example)
 1. Edit the **config.json** file with your datarmor paths as described below.
 2. Choose the right queue based on what you want to do:
 
@@ -122,7 +123,7 @@ This will process the first session of the folder.
 ```
 #PBS -q ftp
 ```
-:warning: **IMPORTANT**: because this queue is the only one that can download maps from the internet, you should only be using it for maps creation and limit the number of parallel jobs you run to 6.
+:warning: Because this queue is the only one that can download maps from the internet, you should only be using it for maps creation and limit the number of parallel jobs you run to 6.
 
 Here is the recommended configuration for the simultaneous creation of six PDF previews from six different sessions:
 ```
@@ -173,7 +174,7 @@ python /path/to/folders_preparation.py
 ```
 qsub -m bea -M prenom.nom@yourmail.com folders_preparation.pbs
 ```
-By indicating your email in this command, you will be notified when the script starts and when it ends.
+:bulb: By indicating your email in this command, you will be notified when the script starts and when it ends.
 
 ## config.json
 This is the configuration file for the **folders_preparation.py** script. Here is a description of it's variables:
@@ -201,7 +202,7 @@ If you don't want to zip the sessions, do not fill in a path, leave the quotes e
 
 - **global_data_path** <br/>
 You can provide this path to enable the creation of the **metadata_image.csv** file. <br/>
-(ex:***'/my/path/to/global_data'***) <br/>
+(ex:***'/my/path/to/global_data/'***) <br/>
 :warning: This path must be provided if **global_trajectory_map** is true.
 
 - **useless_images_path** <br/>
