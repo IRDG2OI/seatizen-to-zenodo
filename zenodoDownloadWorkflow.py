@@ -12,12 +12,31 @@ import pandas as pd
 import zipfile
 import shutil
 
-def extract_all_zip(source_folder, destination_folder):
+"""
+This script defines multiple functions that are used in download_from_filtered_metadata_csv() function which is called in main() at runtime.
+With this script, you can download images from Zenodo based on a filtered csv file. 
+You will download all the images from one or multiple deposit but you will keep only the images that are listed in the filtered csv file.
+The filtered csv file will be build as you wish, but, it must depend on the metadata_image.csv file.
+"""
+
+def extract_all_zip(source_folder, destination_folder, selected_zip):
+    '''
+    Function to extract the content of DCIM.zip or DCIM_THUMBNAILS.zip or FRAMES.zip.
+    ### Input
+    - source_folder: it's the path to the folder where data from Zenodo where downloaded
+    - destination_folder: it's the path to the folder where filtered images will be
+    - selected_zip: either "DCIM.zip" or "DCIM_THUMBNAILS.zip" according to whether images should be extracted in  their original size (DCIM.zip) or in a resized format (DCIM_THUMBNAILS.zip)
+    ### Output
+    Extraction of images that are in DCIM.zip or DCIM_THUMBNAILS.zip or FRAMES.zip.
+    '''
+    # Getting the list of all zip that are in the source_folder
     zip_files = [file for file in os.listdir(source_folder) if file.endswith('.zip')]
+
     for zip_file in zip_files:
         zip_file_path = os.path.join(source_folder, zip_file)
         with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-            if zip_file == "DCIM.zip":
+            # extraction of either DCIM.zip or DCIM_THUMBNAILS.zip
+            if zip_file == selected_zip:
                 print(f"\nExtraction of the images from the zip {zip_file}...")
             for file_info in zip_ref.infolist():
                 # Extract the file, excluding any parent folder information
@@ -30,6 +49,7 @@ def extract_all_zip(source_folder, destination_folder):
                 print(f"\nExtraction of the images from {file_info.filename}")
                 zip_ref.extractall(destination_folder)
         
+        # Deletion of every zip files that are in the destination_folder following the zip extraction
         destination_folder_file_list = os.listdir(destination_folder)
         for file_name in destination_folder_file_list:
             if file_name.endswith(".zip"):
@@ -42,24 +62,35 @@ def extract_all_zip(source_folder, destination_folder):
         os.remove(zip_file_path)
 
 def delete_unwanted_images(filtered_metadata_csv, image_folder):
+    '''
+    Function to delete images that are in the image_folder but not listed in the filtered_metadata_csv.
+    '''
     print("\nChecking for images not listed in the CSV provided...\n")
     df = pd.read_csv(filtered_metadata_csv)
-    filtered_img = df["filename"].tolist()
-    folder_img = [f for f in os.listdir(image_folder) if f.lower().endswith(('.jpg', '.jpeg'))]
+    if "FileName" in df.columns:
+        # getting the list of images names from filtered_metadata_csv
+        filtered_img = df["FileName"].tolist()
+        # getting the list of images names in the image_folder
+        folder_img = [f for f in os.listdir(image_folder) if f.lower().endswith(('.jpg', '.jpeg'))]
 
-    for img in folder_img:
-        if img not in filtered_img:
-            img_path = os.path.join(image_folder, img)
-            os.remove(img_path)
-            print(f"Deleted: {img}")
+        # checking if the images in the folder are in the csv
+        for img in folder_img:
+            if img not in filtered_img:
+                # if images are not in the csv, they are deleted
+                img_path = os.path.join(image_folder, img)
+                os.remove(img_path)
+                print(f"Deleted: {img}")
 
 def rename_images(filtered_metadata_csv, image_folder):
+    '''
+    Function to rename images from OriginalFileName to FileName.
+    '''
     print("\nRenaming images...\n")
     df = pd.read_csv(filtered_metadata_csv)
 
     for index, row in df.iterrows():
-        original_filename = row['original_filename']
-        new_filename = row['filename']
+        original_filename = row['OriginalFileName']
+        new_filename = row['FileName']
 
         # Check if the original file exists in the folder
         old_path = os.path.join(image_folder, original_filename)
@@ -74,12 +105,30 @@ def rename_images(filtered_metadata_csv, image_folder):
 
     print("Image renaming completed.")
 
-def download_from_filtered_metadata_csv(filtered_metadata_csv, download_dir, filtered_img_dir):
+def download_from_filtered_metadata_csv(filtered_metadata_csv, download_dir, filtered_img_dir, thumbnails):
+    '''
+    # Function to download images from Zenodo based on a filtered csv file.
+    ### Input
+    - filtered_metadata_csv: the filtered metadata file that contains the list of images you want to download and their associated Zenodo DOI.
+    - download_dir: path to the folder where the downloaded zip will be located
+    - filtered_img_dir: path to the folder where the images you want will be
+    - thumbnails: a boolean that indicate if images should be extracted in  their original size (DCIM.zip) or in a resized format (DCIM_THUMBNAILS.zip)
+    ### Output
+    The images that you want from Zenodo in the choosen folder.
+    '''
+    # Selection of the zip to extract based on thumbnails value
+    if thumbnails:
+        selected_zip = "DCIM_THUMBNAILS.zip"
+    else:
+        selected_zip = "DCIM.zip"
+
     df = pd.read_csv(filtered_metadata_csv)
+
     try:
         sessions_DOI_IDS = df["Session_doi"].unique().tolist()
     except KeyError:
         print("Session_doi column not found in the provided CSV file.")
+
     for id in sessions_DOI_IDS:
         # Zenodo deposit URL
         deposit_url = f"https://sandbox.zenodo.org/record/{id}"
@@ -111,7 +160,7 @@ def download_from_filtered_metadata_csv(filtered_metadata_csv, download_dir, fil
                 for file_info in files:
                     # print(file_info["key"])
                     # Download the archive containing the images -> can either be DCIM.zip or PROCESSED_DATA.zip
-                    if file_info["key"] == "DCIM.zip" or file_info["key"] == "PROCESSED_DATA.zip":
+                    if file_info["key"] == selected_zip or file_info["key"] == "PROCESSED_DATA.zip":
                         download_url = file_info["links"]["self"]
                         file_name = file_info["key"]
                         file_path = os.path.join(download_dir, file_name)
@@ -128,10 +177,11 @@ def download_from_filtered_metadata_csv(filtered_metadata_csv, download_dir, fil
                         print(f"Downloaded: {file_path}")
                         print("==============================================\n")
 
-                extract_all_zip(download_dir, filtered_img_dir)
-
+                # extraction of zip containing images
+                extract_all_zip(download_dir, filtered_img_dir, selected_zip)
+                # renaming images from original_filename to filename
                 rename_images(filtered_metadata_csv, filtered_img_dir)
-
+                # deletion of images not listed in the filtered csv
                 delete_unwanted_images(filtered_metadata_csv, filtered_img_dir)
                 
             else:
@@ -144,8 +194,9 @@ def main():
     filtered_metadata_csv = "/home/g2oi/Documents/IRD/Travail/zenodo_tests/doi_datapaper/filtered_metadata.csv"
     download_dir = "/home/g2oi/Documents/IRD/Travail/zenodo_tests/downloads/test_21092023/"
     filtered_img_dir = "/home/g2oi/Documents/IRD/Travail/zenodo_tests/filtered_images/test_21092023/"
+    thumbnails = False
 
-    download_from_filtered_metadata_csv(filtered_metadata_csv, download_dir, filtered_img_dir)
+    download_from_filtered_metadata_csv(filtered_metadata_csv, download_dir, filtered_img_dir, thumbnails)
 
 
 if __name__ == '__main__':
