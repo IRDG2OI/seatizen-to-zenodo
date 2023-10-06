@@ -33,6 +33,7 @@ warnings.simplefilter(action = "ignore", category = RuntimeWarning)
 """
 This script defines multiple functions that are used in the restructure_sessions() function.
 This function is then called in main() at runtime.
+Please refer to the README associated with this script for more informations.
 """
 
 def get_subfolders(folder_path):
@@ -215,11 +216,24 @@ def copy_and_zip_folder(src_folder, dest_folder, session_name):
     # List subdirectories in the session folder
     subdirs = [os.path.join(session_folder, subdir) for subdir in os.listdir(session_folder) if os.path.isdir(os.path.join(session_folder, subdir))]
 
+    # Getting the path to the folder where jacques classification csv is
+    classification_path = os.path.join(session_folder, "LABEL/")
+    if not os.path.exists(classification_path):
+        classification_path = os.path.join(session_folder, "PROCESSED_DATA/IA/")
+
+    files = os.listdir(classification_path)
+    for file in files:
+        # Check if DCIM should be zipped based on the presence of PROCESSED_DATA and the jacques classification csv file
+        if file.startswith("classification") and os.path.exists(os.path.join(session_folder, "PROCESSED_DATA")):
+            folders_to_zip = ["DCIM_THUMBNAILS", "GPS", "LABEL", "METADATA", "PROCESSED_DATA", "SENSORS"]
+        else:
+            folders_to_zip = ["DCIM", "DCIM_THUMBNAILS", "GPS", "LABEL", "METADATA", "PROCESSED_DATA", "SENSORS"]
+
     # Zip subfolders:
     for subdir in subdirs:
         subdir_name = os.path.basename(subdir)
 
-        if subdir_name in ["DCIM", "DCIM_THUMBNAILS", "GPS", "LABEL", "METADATA", "PROCESSED_DATA", "SENSORS"]:
+        if subdir_name in folders_to_zip:
             if subdir_name == "PROCESSED_DATA": # zipping folders in PROCESSED_DATA
                 subsubdirs = [os.path.join(subdir, subsubdir) for subsubdir in os.listdir(subdir) if os.path.isdir(os.path.join(subdir, subsubdir))]
                 for subsubdir in subsubdirs:
