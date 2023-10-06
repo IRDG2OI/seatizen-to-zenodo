@@ -220,8 +220,8 @@ You can leave the brackets empty if you don't want to use any model.
 There you can associate each model to it's labels and corresponding thresholds. <br/>
 (ex: ***{"multilabel": {"Acropore_branched": 0.56, "Acropore_digitised": 0.48,...},"grass_kelly": {"herbier": 0.592}}***)
 
-- **delete_before_after** <br/>
-Boolean value to enable or disable the deletion of the folders **BEFORE** and **AFTER**. Can either be **true** or **false**.
+- **delete_before_after_useless** <br/>
+Boolean value to enable or disable the deletion of the folders **BEFORE**, **AFTER** and **USELESS** if they exists. Can either be **true** or **false**.
 
 - **global_trajectory_map** <br/>
 Boolean value to indicate if the user want to create the global trajectory map or not. Can either be **true** or **false**.
