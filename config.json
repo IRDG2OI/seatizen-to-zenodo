@@ -45,7 +45,7 @@
         }
     },
 
-    "delete_before_after":false,
+    "delete_before_after_useless":false,
     "global_trajectory_map":false,
     "pdf_preview":false
 }
