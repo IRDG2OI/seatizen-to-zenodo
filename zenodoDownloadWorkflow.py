@@ -131,7 +131,7 @@ def download_from_filtered_metadata_csv(filtered_metadata_csv, download_dir, fil
 
     for id in sessions_DOI_IDS:
         # Zenodo deposit URL
-        deposit_url = f"https://sandbox.zenodo.org/record/{id}"
+        deposit_url = f"https://zenodo.org/record/{id}"
 
         # Zenodo API endpoint for the deposit metadata
         api_url = "https://" + deposit_url.split("/")[-3] + "/api/records/" + deposit_url.split("/")[-1]
@@ -158,24 +158,25 @@ def download_from_filtered_metadata_csv(filtered_metadata_csv, download_dir, fil
                 
                 # Loop through the files and download the selected archives
                 for file_info in files:
-                    # print(file_info["key"])
-                    # Download the archive containing the images -> can either be DCIM.zip or PROCESSED_DATA.zip
+                    # Download the archive containing the images -> can either be DCIM.zip, DCIM_THUMBNAILS.zip or PROCESSED_DATA.zip
                     if file_info["key"] == selected_zip or file_info["key"] == "PROCESSED_DATA.zip":
-                        download_url = file_info["links"]["self"]
-                        file_name = file_info["key"]
-                        file_path = os.path.join(download_dir, file_name)
-                        print("\n==============================================")
-                        print(f"Downloading {file_name} of deposit {title}...")
-                        # Download the archive
-                        with requests.get(download_url, stream=True) as download_response:
-                            download_response.raise_for_status()
-                            with open(file_path, "wb") as file:
-                                for chunk in download_response.iter_content(chunk_size=8192):
-                                    if chunk:
-                                        file.write(chunk)
+                        downloaded_zip = os.listdir(download_dir)
+                        if "DCIM_THUMBNAILS.zip" not in downloaded_zip: # download PROCESSED_DATA.zip only if DCIM_THUMBNAILS is not already downloaded
+                            download_url = file_info["links"]["self"]
+                            file_name = file_info["key"]
+                            file_path = os.path.join(download_dir, file_name)
+                            print("\n==============================================")
+                            print(f"Downloading {file_name} of deposit {title}...")
+                            # Download the archive
+                            with requests.get(download_url, stream=True) as download_response:
+                                download_response.raise_for_status()
+                                with open(file_path, "wb") as file:
+                                    for chunk in download_response.iter_content(chunk_size=8192):
+                                        if chunk:
+                                            file.write(chunk)
                         
-                        print(f"Downloaded: {file_path}")
-                        print("==============================================\n")
+                            print(f"Downloaded: {file_path}")
+                            print("==============================================\n")
 
                 # extraction of zip containing images
                 extract_all_zip(download_dir, filtered_img_dir, selected_zip)
