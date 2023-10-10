@@ -198,7 +198,7 @@ This path must be provided. It's the list of sessions, it can be either the path
 It's the path to the folder where you want to create the zipped version of each session: <br/>
 (ex:***'/my/path/to/zip_folder/'***) <br/>
 If you don't want to zip the sessions, do not fill in a path, leave the quotes empty. <br/>
-:warning: This path must be provided if **pdf_preview** is true.
+:warning: This path must be provided if **pdf_preview** is true: only the pdf previews will be created, sessions will not be zipped.
 
 - **global_data_path** <br/>
 You can provide this path to enable the creation of the **metadata_image.csv** file. <br/>
@@ -226,7 +226,7 @@ Boolean value to enable or disable the deletion of the folders **BEFORE**, **AFT
 - **global_trajectory_map** <br/>
 Boolean value to indicate if the user want to create the global trajectory map or not. Can either be **true** or **false**.
 
-- **pdf_peview** <br/>
+- **pdf_preview** <br/>
 Boolean value to indicate if a pdf preview will be created for each session. Can either be **true** or **false**.
 
 ---
