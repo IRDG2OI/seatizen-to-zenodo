@@ -223,15 +223,17 @@ def copy_and_zip_folder(src_folder, dest_folder, session_name):
         classification_path = os.path.join(session_folder, "PROCESSED_DATA/IA/")
 
     files = os.listdir(classification_path)
-    for file in files:
-        # Check if DCIM should be zipped based on the presence of PROCESSED_DATA and the jacques classification csv file.
-        # If there is a jacques classification file in the session folder, it only zip the folders that should appear in the public deposit on Zenodo.
-        if file.startswith("classification") and os.path.exists(os.path.join(session_folder, "PROCESSED_DATA")): # public deposit with PROCESSED_DATA
-            folders_to_zip = ["DCIM_THUMBNAILS", "GPS", "METADATA", "PROCESSED_DATA", "SENSORS"]
-        elif file.startswith("classification") and not os.path.exists(os.path.join(session_folder, "PROCESSED_DATA")): # public deposit without PROCESSED_DATA
-            folders_to_zip = ["DCIM", "DCIM_THUMBNAILS", "GPS", "METADATA", "SENSORS"]
-        else: # restricted deposit
-            folders_to_zip = ["DCIM", "DCIM_THUMBNAILS", "GPS", "LABEL", "METADATA", "PROCESSED_DATA", "SENSORS"]
+    # Check if DCIM should be zipped based on the presence of PROCESSED_DATA and the jacques classification csv file.
+    # If there is a jacques classification file in the session folder, it only zip the folders that should appear in the public deposit on Zenodo.
+    if any(file.startswith("classification") for file in files) and os.path.exists(os.path.join(session_folder, "PROCESSED_DATA")): # public deposit with PROCESSED_DATA
+        print("\nPublic deposit with PROCESSED_DATA")
+        folders_to_zip = ["DCIM_THUMBNAILS", "GPS", "METADATA", "PROCESSED_DATA", "SENSORS"]
+    elif any(file.startswith("classification") for file in files) and not os.path.exists(os.path.join(session_folder, "PROCESSED_DATA")): # public deposit without PROCESSED_DATA
+        print("\nPublic deposit without PROCESSED_DATA")
+        folders_to_zip = ["DCIM", "DCIM_THUMBNAILS", "GPS", "METADATA", "SENSORS"]
+    else: # restricted deposit
+        print("\nRestricted deposit")
+        folders_to_zip = ["DCIM", "DCIM_THUMBNAILS", "GPS", "LABEL", "METADATA", "PROCESSED_DATA", "SENSORS"]
 
     # Zip subfolders:
     for subdir in subdirs:
