@@ -5,11 +5,22 @@
 </div>
 </br>
 
+This repository contains three runnable Python scripts: **copy_folders.py**, **folders_preparation.py** and **zenodoDownloadWorkflow.py** <br/>
+Those scripts will help you prepare your [Seatizen](https://ocean-indien.ifremer.fr/Projets/Innovations-technologiques/SEATIZEN-2020-2022) data before uploading it to Zenodo, and it also offers a solution to download specific data you uploaded on Zenodo.
+
+## copy_folders.py
+This script can be called in the **copy_folders.pbs** file to parallelize the copy of the sessions you want to process. <br/>
+A use case example is available [here](https://github.com/alexandreBoy/seatizen-to-zenodo-example/blob/main/1_sessions_copy/copy_folders.pbs).
+
+## zenodoDownloadWorkflow.py
+You can use this script to download images from Zenodo based on a filtered csv file created from **metadata_image.csv**. <br/>
+The csv file must have a column "Session_doi" that associate each image to a Zenodo DOI.
+
 ## folders_preparation.py
 
-This Python script will help you prepare your [seatizen](https://ocean-indien.ifremer.fr/Projets/Innovations-technologiques/SEATIZEN-2020-2022) data before uploading it to Zenodo. <br/>
+This is the main script to prepare your data. <br/>
 It uses Jacques, a package to classify useless and useful images according to marine ecological interests. <br/>
-See the [original repository](https://github.com/IRDG2OI/jacques) for more informations on Jacques.
+See the [original repository](https://github.com/IRDG2OI/jacques) for more information on Jacques.
 
 With the **folders_preparation.py** script you can:
 
@@ -19,12 +30,12 @@ With the **folders_preparation.py** script you can:
 4. Create a .txt file with jacques classification statistics (total images, number of useful/useless images, percentage of useless images in relation of total images).
 5. Create a PDF preview for each session (composed of a trajectory map, 100 thumbnails of images representative of the session and a metadata sneakpeek). 
 6. Create zipped versions of each session folder.
-7. Create a file metadata_image.csv that contains metadata of every sessions merged together.
+7. Create a file metadata_image.csv that contains metadata of every session merged together.
 8. Create a .txt file that describe the content of metadata_image.csv (total images, number of useful/useless images, percentage of useless images in relation of total images).
 9. Create a global map showing the location of all images.
 
 Depending on what you want to do, you may decide to carry out one step rather than another. <br/>
-The **config.json** file will allow you to precisely do that. See the end of this README for more informations on the configuration file.
+The **config.json** file will allow you to precisely do that. See the end of this README for more information on the configuration file.
 
 :warning: This script can only be used on sessions folders that respect one of the architectures below:
 ```
