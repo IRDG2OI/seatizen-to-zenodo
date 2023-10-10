@@ -22,6 +22,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import Table
 from reportlab.lib import colors
+from textwrap import wrap
 import warnings
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
@@ -223,10 +224,13 @@ def copy_and_zip_folder(src_folder, dest_folder, session_name):
 
     files = os.listdir(classification_path)
     for file in files:
-        # Check if DCIM should be zipped based on the presence of PROCESSED_DATA and the jacques classification csv file
-        if file.startswith("classification") and os.path.exists(os.path.join(session_folder, "PROCESSED_DATA")):
-            folders_to_zip = ["DCIM_THUMBNAILS", "GPS", "LABEL", "METADATA", "PROCESSED_DATA", "SENSORS"]
-        else:
+        # Check if DCIM should be zipped based on the presence of PROCESSED_DATA and the jacques classification csv file.
+        # If there is a jacques classification file in the session folder, it only zip the folders that should appear in the public deposit on Zenodo.
+        if file.startswith("classification") and os.path.exists(os.path.join(session_folder, "PROCESSED_DATA")): # public deposit with PROCESSED_DATA
+            folders_to_zip = ["DCIM_THUMBNAILS", "GPS", "METADATA", "PROCESSED_DATA", "SENSORS"]
+        elif file.startswith("classification") and not os.path.exists(os.path.join(session_folder, "PROCESSED_DATA")): # public deposit without PROCESSED_DATA
+            folders_to_zip = ["DCIM", "DCIM_THUMBNAILS", "GPS", "METADATA", "SENSORS"]
+        else: # restricted deposit
             folders_to_zip = ["DCIM", "DCIM_THUMBNAILS", "GPS", "LABEL", "METADATA", "PROCESSED_DATA", "SENSORS"]
 
     # Zip subfolders:
@@ -423,7 +427,7 @@ def create_trajectory_map(metadata_path, global_trajectories):
             ax.add_image(imagery, 17) # aldabra/mayotte position so we adjust the zoom level
             ax.plot(df.GPSLongitude, df.GPSLatitude, color='yellow', linewidth=0.1)
         else: # other positions
-            ax.set_extent([df.GPSLongitude.min()-0.005, df.GPSLongitude.max()+0.005, df.GPSLatitude.min()-0.001,df.GPSLatitude.max()+0.001])
+            ax.set_extent([df.GPSLongitude.min()-0.001, df.GPSLongitude.max()+0.001, df.GPSLatitude.min()-0.001,df.GPSLatitude.max()+0.001])
             ax.add_image(imagery, 19)
             ax.plot(df.GPSLongitude, df.GPSLatitude, color='yellow', linewidth=0.3)
     else: # global trajectories map
@@ -444,7 +448,7 @@ def create_trajectory_map(metadata_path, global_trajectories):
         # saving the map in the same folder as metadata_image.csv
         map_path = os.path.join(os.path.dirname(metadata_path), "000_global_map.png")
 
-    fig.savefig(map_path, bbox_inches='tight',pad_inches=0, dpi=600)
+    fig.savefig(map_path, bbox_inches='tight',pad_inches=0, dpi=300)
     print("Trajectory map created!")
 
 def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
@@ -475,7 +479,11 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
 
     create_trajectory_map(metadata_path, False)
     print("Adding map to the PDF...")
-    c.drawImage("map.png", 20, 300)
+    image_map = Image.open("map.png")
+    image_map_width, image_map_height = image_map.size
+    x = (page_width - image_map_width) / 2
+    y = (page_height - image_map_height) / 2
+    c.drawImage("map.png", x, y)
     os.remove("map.png") # deleting map.png
 
     c.setFont("Helvetica-Bold", 16)
@@ -521,6 +529,8 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     c.setPageSize(landscape(letter))
 
     # Metadata preview
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(30, 530, "Metadata preview")
     print("Loading data for metadata preview...")
     metadata_file = os.path.join(session, f"METADATA/metadata.csv")
     df = pd.read_csv(metadata_file)
@@ -534,6 +544,7 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
         preview_df = preview_df[["photo_identifier", "GPSDateTime", "GPSLatitude", "GPSLongitude", "FileSize", "ImageHeight", "ImageWidth"]]
 
     print("Creation of the PDF table...")
+    all_cols = list(df.columns)
     table_data = [list(preview_df.columns)] + preview_df.values.tolist()
     table = Table(table_data)
 
@@ -549,8 +560,16 @@ def create_pdf_preview(pdf_preview_path, session, session_name, list_of_images):
     table.wrapOn(c, 10, 20)
     table.drawOn(c, 30, 100)
     print("PDF table sucessfully created!")
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(30, 530, "Metadata preview")
+    
+    text = c.beginText(30, 70)
+    text.setFont('Courier', 8)
+    line = f"All metadata columns names: {all_cols}"
+    wraped_text = "\n".join(wrap(line, 160))
+    text.textLines(wraped_text)
+    c.drawText(text)
+    
+    c.setFont("Courier", 8)
+    c.drawString(30, 80, f"Total images: {len(df)}")
     
     c.save()
     print("PDF created!")
