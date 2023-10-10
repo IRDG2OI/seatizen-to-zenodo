@@ -22,13 +22,13 @@ This is the main script to prepare your data. <br/>
 It uses Jacques, a package to classify useless and useful images according to marine ecological interests. <br/>
 See the [original repository](https://github.com/IRDG2OI/jacques) for more information on Jacques.
 
-With the **folders_preparation.py** script you can:
+With the **folders_preparation.py** script, you can:
 
 1. Apply the jacques classification model on each session, moving out every useless images.
 2. Export the jacques classification results to a csv file.
 3. Create annotations csv files from a given model, labels and thresholds.
-4. Create a .txt file with jacques classification statistics (total images, number of useful/useless images, percentage of useless images in relation of total images).
-5. Create a PDF preview for each session (composed of a trajectory map, 100 thumbnails of images representative of the session and a metadata sneakpeek). 
+4. Create a .txt file with jacques classification statistics (total images, number of useful/useless images, percentage of useless images in relation to total images).
+5. Create a PDF preview for each session (composed of a trajectory map, 100 thumbnails of images representative of the session and a metadata sneak peek). 
 6. Create zipped versions of each session folder.
 7. Create a file metadata_image.csv that contains metadata of every session merged together.
 8. Create a .txt file that describe the content of metadata_image.csv (total images, number of useful/useless images, percentage of useless images in relation of total images).
@@ -118,7 +118,7 @@ This is the folder where the execution environment is located.
 ```
 python folders_preparation.py
 ```
-This will process every sessions of the folder indicated in the config.json file. <br/>
+This will process every session of the folder indicated in the config.json file. <br/>
 If you want to process a specific session in the folder, you can do so by adding the argument **--session-index** to the previous command:
 ```
 python folders_preparation.py --session-index 1
@@ -201,7 +201,7 @@ There you can add models names and their associated paths. Models names must mat
 You can leave the brackets empty if you don't want to use any model.
 
 - **sessions_path** <br/>
-This path must be provided. It's the list of sessions, it can be either the path to a single directory that contains every sessions: <br/>
+This path must be provided. It's the list of sessions, it can be either the path to a single directory which contains all sessions: <br/>
 (ex: ***'/my/path/to/my_sessions/'*** or a list of sessions paths:
 ***['/my/path/to/session1', '/my/path/to/session2']***)
 
@@ -232,10 +232,10 @@ There you can associate each model to it's labels and corresponding thresholds. 
 (ex: ***{"multilabel": {"Acropore_branched": 0.56, "Acropore_digitised": 0.48,...},"grass_kelly": {"herbier": 0.592}}***)
 
 - **delete_before_after_useless** <br/>
-Boolean value to enable or disable the deletion of the folders **BEFORE**, **AFTER** and **USELESS** if they exists. Can either be **true** or **false**.
+Boolean value to enable or disable the deletion of the folders **BEFORE**, **AFTER** and **USELESS** if they exist. Can either be **true** or **false**.
 
 - **global_trajectory_map** <br/>
-Boolean value to indicate if the user want to create the global trajectory map or not. Can either be **true** or **false**.
+Boolean value to indicate if the user wants to create the global trajectory map or not. Can either be **true** or **false**.
 
 - **pdf_preview** <br/>
 Boolean value to indicate if a pdf preview will be created for each session. Can either be **true** or **false**.
@@ -243,7 +243,7 @@ Boolean value to indicate if a pdf preview will be created for each session. Can
 ---
 <div align="center">
 
-This project is being developed as part of the G2OI project, cofinanced by the European union, the Reunion region, and the French Republic.
+This project is being developed as part of the G2OI project, cofinanced by the European Union, the Reunion region, and the French Republic.
 
 <img src="https://github.com/IRDG2OI/seatizen-to-zenodo/blob/main/docs/logos_partenaires.png?raw=True" height="40px">
 
