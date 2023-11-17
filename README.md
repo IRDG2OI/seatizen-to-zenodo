@@ -1,5 +1,4 @@
-<div align="center">
-  
+ 
 #ACKNOWLEDGEMENT
 
 This project is being developed as part of the G2OI project, cofinanced by the European Union, the Reunion region, and the French Republic.
@@ -12,8 +11,7 @@ This project is being developed as part of the G2OI project, cofinanced by the E
 
 # seatizen-to-zenodo
 
-</div>
-</br>
+
 
 This repository contains three runnable Python scripts: **copy_folders.py**, **folders_preparation.py** and **zenodoDownloadWorkflow.py** <br/>
 Those scripts will help you prepare your [Seatizen](https://ocean-indien.ifremer.fr/Projets/Innovations-technologiques/SEATIZEN-2020-2022) data before uploading it to Zenodo, and it also offers a solution to download specific data you uploaded on Zenodo.
